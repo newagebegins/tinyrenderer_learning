@@ -15,12 +15,15 @@ void debugPrint(char *format, ...) {
   OutputDebugString(str);
 }
 
-#define BACKBUFFER_WIDTH 512
+#define BACKBUFFER_WIDTH 100
 #define BACKBUFFER_HEIGHT BACKBUFFER_WIDTH
 #define BACKBUFFER_BYTES (BACKBUFFER_WIDTH * BACKBUFFER_HEIGHT * sizeof(uint32_t))
-#define WINDOW_SCALE 1
+#define WINDOW_SCALE 7
 #define WINDOW_WIDTH (BACKBUFFER_WIDTH * WINDOW_SCALE)
 #define WINDOW_HEIGHT (BACKBUFFER_HEIGHT * WINDOW_SCALE)
+
+#define WHITE 0xFFFFFFFF
+#define RED   0xFFFF0000
 
 uint32_t *backbuffer;
 
@@ -34,6 +37,56 @@ void drawFilledRect(int left, int top, int right, int bottom, uint32_t color) {
       setPixel(x, y, color);
     }
   }
+}
+
+void drawLine(int x0, int y0, int x1, int y1, uint32_t color) {
+  if (x1 < x0) {
+    int tmp = x0;
+    x0 = x1;
+    x1 = tmp;
+  }
+  if (y1 < y0) {
+    int tmp = y0;
+    y0 = y1;
+    y1 = tmp;
+  }
+
+  float dx = (float)(x1 - x0);
+  float dy = (float)(y1 - y0);
+
+  if (dx >= dy) {
+    for (int x = x0; x <= x1; ++x) {
+      float t = (x - x0) / dx;
+      int y = (int)((1.0f - t)*y0 + t*y1);
+      setPixel(x, y, color);
+    }
+  } else {
+    for (int y = y0; y <= y1; ++y) {
+      float t = (y - y0) / dy;
+      int x = (int)((1.0f - t)*x0 + t*x1);
+      setPixel(x, y, color);
+    }
+  }
+}
+
+void readObjFile() {
+  BOOL success;
+
+  HANDLE fileHandle = CreateFile("african_head.obj", GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+  assert(fileHandle != INVALID_HANDLE_VALUE);
+
+  LARGE_INTEGER fileSize;
+  success = GetFileSizeEx(fileHandle, &fileSize);
+  assert(success);
+
+  char *fileContents = malloc(fileSize.LowPart);
+
+  DWORD numBytesRead;
+  success = ReadFile(fileHandle, fileContents, fileSize.LowPart, &numBytesRead, NULL);
+  assert(success);
+  assert(numBytesRead == fileSize.LowPart);
+
+  free(fileContents);
 }
 
 typedef enum {BUTTON_EXIT, BUTTON_ACTION, BUTTON_COUNT} Button;
@@ -112,6 +165,10 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
   int mousePosX = 0;
   int mousePosY = 0;
 
+  //
+
+  readObjFile();
+
   bool gameIsRunning = true;
 
   while (gameIsRunning) {
@@ -173,7 +230,13 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       //debugPrint("%d,%d\n", mousePosX, mousePosY);
     }
 
-    drawFilledRect(0, 0, BACKBUFFER_WIDTH-1, BACKBUFFER_HEIGHT-1, 0xFFFF0000);
+    drawFilledRect(0, 0, BACKBUFFER_WIDTH-1, BACKBUFFER_HEIGHT-1, 0xFF111133);
+
+    drawLine(13, 20, 80, 40, WHITE);
+    drawLine(85, 40, 18, 20, RED);
+
+    drawLine(20, 13, 40, 80, RED);
+    drawLine(45, 80, 25, 13, WHITE);
 
     StretchDIBits(deviceContext,
                   0, 0, WINDOW_WIDTH, WINDOW_HEIGHT,
