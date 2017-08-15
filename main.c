@@ -24,6 +24,7 @@ void debugPrint(char *format, ...) {
 
 #define WHITE 0xFFFFFFFF
 #define RED   0xFFFF0000
+#define GREEN 0xFF00FF00
 
 uint32_t *backbuffer;
 
@@ -86,6 +87,12 @@ void drawLine(int x1, int y1, int x2, int y2, uint32_t color) {
       setPixel(x, y, color);
     }
   }
+}
+
+void drawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color) {
+  drawLine(x0, y0, x1, y1, color);
+  drawLine(x1, y1, x2, y2, color);
+  drawLine(x2, y2, x0, y0, color);
 }
 
 typedef struct {
@@ -323,7 +330,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
     drawLine(5, 100, 100, 70, RED);
 #endif
 
-#if 1
+#if 0
     for (int i = 0; i < NUM_FACES; ++i) {
       Face *f = &faces[i];
       for (int j = 0; j < 3; ++j) {
@@ -337,6 +344,10 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       }
     }
 #endif
+
+    drawTriangle(10, 70, 50, 160, 70, 80, RED);
+    drawTriangle(180, 50, 150, 1, 70, 180, WHITE);
+    drawTriangle(180, 150, 120, 160, 130, 180, GREEN);
 
     StretchDIBits(deviceContext,
                   0, 0, WINDOW_WIDTH, WINDOW_HEIGHT,
