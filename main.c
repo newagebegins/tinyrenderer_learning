@@ -15,10 +15,10 @@ void debugPrint(char *format, ...) {
   OutputDebugString(str);
 }
 
-#define BACKBUFFER_WIDTH 100
+#define BACKBUFFER_WIDTH 900
 #define BACKBUFFER_HEIGHT BACKBUFFER_WIDTH
 #define BACKBUFFER_BYTES (BACKBUFFER_WIDTH * BACKBUFFER_HEIGHT * sizeof(uint32_t))
-#define WINDOW_SCALE 7
+#define WINDOW_SCALE 1
 #define WINDOW_WIDTH (BACKBUFFER_WIDTH * WINDOW_SCALE)
 #define WINDOW_HEIGHT (BACKBUFFER_HEIGHT * WINDOW_SCALE)
 
@@ -28,6 +28,8 @@ void debugPrint(char *format, ...) {
 uint32_t *backbuffer;
 
 void setPixel(int x, int y, uint32_t color) {
+  assert(x >= 0 && x < BACKBUFFER_WIDTH);
+  assert(y >= 0 && y < BACKBUFFER_HEIGHT);
   backbuffer[y*BACKBUFFER_WIDTH + x] = color;
 }
 
@@ -39,35 +41,66 @@ void drawFilledRect(int left, int top, int right, int bottom, uint32_t color) {
   }
 }
 
-void drawLine(int x0, int y0, int x1, int y1, uint32_t color) {
-  if (x1 < x0) {
-    int tmp = x0;
-    x0 = x1;
-    x1 = tmp;
-  }
-  if (y1 < y0) {
-    int tmp = y0;
-    y0 = y1;
-    y1 = tmp;
+void drawLine(int x1, int y1, int x2, int y2, uint32_t color) {
+  if (x1 == x2 && y1 == y2) {
+    setPixel(x1, y1, color);
+    return;
   }
 
-  float dx = (float)(x1 - x0);
-  float dy = (float)(y1 - y0);
+  int xStart, xEnd, yStart, yEnd;
+  int dx = x2 - x1;
+  int dy = y2 - y1;
 
-  if (dx >= dy) {
-    for (int x = x0; x <= x1; ++x) {
-      float t = (x - x0) / dx;
-      int y = (int)((1.0f - t)*y0 + t*y1);
+  if (abs(dx) > abs(dy)) {
+    float m = (float)dy / (float)dx;
+    if (x1 < x2) {
+      xStart = x1;
+      yStart = y1;
+      xEnd = x2;
+      yEnd = y2;
+    } else {
+      xStart = x2;
+      yStart = y2;
+      xEnd = x1;
+      yEnd = y1;
+    }
+    for (int x = xStart; x <= xEnd; ++x) {
+      int y = (int)(m * (x - xStart) + yStart);
       setPixel(x, y, color);
     }
   } else {
-    for (int y = y0; y <= y1; ++y) {
-      float t = (y - y0) / dy;
-      int x = (int)((1.0f - t)*x0 + t*x1);
+    float m = (float)dx / (float)dy;
+    if (y1 < y2) {
+      xStart = x1;
+      yStart = y1;
+      xEnd = x2;
+      yEnd = y2;
+    } else {
+      xStart = x2;
+      yStart = y2;
+      xEnd = x1;
+      yEnd = y1;
+    }
+    for (int y = yStart; y <= yEnd; ++y) {
+      int x = (int)(m * (y - yStart) + xStart);
       setPixel(x, y, color);
     }
   }
 }
+
+typedef struct {
+  float x, y, z;
+} Vec3;
+
+typedef struct {
+  int v[3];
+} Face;
+
+#define NUM_VERTICES 1258
+Vec3 vertices[NUM_VERTICES];
+
+#define NUM_FACES 2492
+Face faces[NUM_FACES];
 
 void readObjFile() {
   BOOL success;
@@ -85,6 +118,46 @@ void readObjFile() {
   success = ReadFile(fileHandle, fileContents, fileSize.LowPart, &numBytesRead, NULL);
   assert(success);
   assert(numBytesRead == fileSize.LowPart);
+
+  char *p = fileContents;
+  char *end = fileContents + fileSize.LowPart;
+
+  Vec3 *v = vertices;
+  Face *f = faces;
+
+  while (p < end) {
+    char line[64];
+    int lineSize = 0;
+
+    while (*p != '\n' && p < end) {
+      line[lineSize++] = *(p++);
+    }
+    line[lineSize] = '\0';
+    ++p;
+
+    if (lineSize > 2) {
+      if (line[0] == 'v' && line[1] == ' ') {
+        int numAssigned = sscanf_s(line, "v %f %f %f", &v->x, &v->y, &v->z);
+        assert(numAssigned == 3);
+        ++v;
+      }
+      if (line[0] == 'f' && line[1] == ' ') {
+        int trash;
+        int numAssigned = sscanf_s(line, "f %d/%d/%d %d/%d/%d %d/%d/%d", &f->v[0], &trash, &trash, &f->v[1], &trash, &trash, &f->v[2], &trash, &trash);
+        assert(numAssigned == 9);
+        f->v[0] -= 1;
+        f->v[1] -= 1;
+        f->v[2] -= 1;
+        assert(f->v[0] >= 0 && f->v[0] < NUM_VERTICES);
+        assert(f->v[1] >= 0 && f->v[1] < NUM_VERTICES);
+        assert(f->v[2] >= 0 && f->v[2] < NUM_VERTICES);
+        ++f;
+      }
+    }
+  }
+
+  assert(v == vertices + NUM_VERTICES);
+  assert(f == faces + NUM_FACES);
 
   free(fileContents);
 }
@@ -128,7 +201,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
   DWORD wndStyle = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
   AdjustWindowRect(&crect, wndStyle, 0);
 
-  HWND wnd = CreateWindowEx(0, wndClass.lpszClassName, "Renderer", wndStyle, 300, 100,
+  HWND wnd = CreateWindowEx(0, wndClass.lpszClassName, "Renderer", wndStyle, 300, 50,
                             crect.right - crect.left, crect.bottom - crect.top,
                             0, 0, inst, 0);
   ShowWindow(wnd, cmdShow);
@@ -232,11 +305,38 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
 
     drawFilledRect(0, 0, BACKBUFFER_WIDTH-1, BACKBUFFER_HEIGHT-1, 0xFF111133);
 
+#if 0
     drawLine(13, 20, 80, 40, WHITE);
     drawLine(85, 40, 18, 20, RED);
 
     drawLine(20, 13, 40, 80, RED);
     drawLine(45, 80, 25, 13, WHITE);
+
+    drawLine(45, 80, 60, 80, 0xFF00FF00);
+    drawLine(60, 78, 45, 78, 0xFFCCFF00);
+
+    drawLine(45, 30, 45, 80, 0xFF00FF00);
+    drawLine(47, 80, 47, 30, 0xFFCCFF00);
+
+    drawLine(5, 5, 5, 5, 0xFFCCFF00);
+
+    drawLine(5, 100, 100, 70, RED);
+#endif
+
+#if 1
+    for (int i = 0; i < NUM_FACES; ++i) {
+      Face *f = &faces[i];
+      for (int j = 0; j < 3; ++j) {
+        Vec3 *v0 = &vertices[f->v[j]];
+        Vec3 *v1 = &vertices[f->v[(j+1)%3]];
+        int x0 = (int)((v0->x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f);
+        int y0 = (int)((v0->y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f);
+        int x1 = (int)((v1->x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f);
+        int y1 = (int)((v1->y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f);
+        drawLine(x0, y0, x1, y1, WHITE);
+      }
+    }
+#endif
 
     StretchDIBits(deviceContext,
                   0, 0, WINDOW_WIDTH, WINDOW_HEIGHT,
