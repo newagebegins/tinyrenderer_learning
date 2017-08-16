@@ -181,8 +181,6 @@ Vec3 getBarycentricCoords(Vec3 A, Vec3 B, Vec3 C, Vec3 P) {
   Vec3 v1 = makeVec3(AB.x, AC.x, PA.x);
   Vec3 v2 = makeVec3(AB.y, AC.y, PA.y);
   Vec3 c = crossVec3(v1, v2);
-  assert(fabs(dotVec3(c, v1)) < 0.0001f);
-  assert(fabs(dotVec3(c, v2)) < 0.0001f);
   if (fabs(c.z) < 0.0001f) return makeVec3(-1.0f, 1.0f, 1.0f);
   Vec3 b;
   b.x = c.x / c.z;
@@ -192,29 +190,34 @@ Vec3 getBarycentricCoords(Vec3 A, Vec3 B, Vec3 C, Vec3 P) {
   return b;
 }
 
-void drawTriangleBarycentric(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color) {
-  int minX = x0;
+void drawTriangleBarycentric(float x0, float y0, float x1, float y1, float x2, float y2, uint32_t color) {
+  float minX = x0;
   if (x1 < minX) minX = x1;
   if (x2 < minX) minX = x2;
 
-  int minY = y0;
+  float minY = y0;
   if (y1 < minY) minY = y1;
   if (y2 < minY) minY = y2;
 
-  int maxX = x0;
+  float maxX = x0;
   if (x1 > maxX) maxX = x1;
   if (x2 > maxX) maxX = x2;
 
-  int maxY = y0;
+  float maxY = y0;
   if (y1 > maxY) maxY = y1;
   if (y2 > maxY) maxY = y2;
 
-  Vec3 A = makeVec3((float)x0, (float)y0, 0);
-  Vec3 B = makeVec3((float)x1, (float)y1, 0);
-  Vec3 C = makeVec3((float)x2, (float)y2, 0);
+  Vec3 A = makeVec3(x0, y0, 0);
+  Vec3 B = makeVec3(x1, y1, 0);
+  Vec3 C = makeVec3(x2, y2, 0);
 
-  for (int y = minY; y <= maxY; ++y) {
-    for (int x = minX; x <= maxX; ++x) {
+  int minXi = (int)(minX + 0.5f);
+  int maxXi = (int)(maxX + 0.5f);
+  int minYi = (int)(minY + 0.5f);
+  int maxYi = (int)(maxY + 0.5f);
+
+  for (int y = minYi; y <= maxYi; ++y) {
+    for (int x = minXi; x <= maxXi; ++x) {
       Vec3 p = makeVec3((float)x, (float)y, 0);
       Vec3 b = getBarycentricCoords(A, B, C, p);
       if (b.x < 0 || b.y < 0 || b.z < 0) continue;
@@ -230,16 +233,6 @@ uint32_t makeColor(int r, int g, int b) {
   //0xFFRRGGBB
   uint32_t color = (0xFF << 8*3) | (r << 8*2) | (g << 8*1) | (b << 8*0);
   return color;
-}
-
-bool debugBarycentric = true;
-
-void drawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color) {
-  if (debugBarycentric) {
-    drawTriangleBarycentric(x0, y0, x1, y1, x2, y2, color);
-  } else {
-    drawTriangleLineSweep(x0, y0, x1, y1, x2, y2, color);
-  }
 }
 
 typedef struct {
@@ -447,14 +440,6 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       gameIsRunning = false;
     }
 
-    if (buttonIsPressed(BUTTON_F1)) {
-      debugBarycentric = !debugBarycentric;
-      if (debugBarycentric)
-        debugPrint("barycentric on\n");
-      else
-        debugPrint("barycentric off\n");
-    }
-
     {
       POINT p;
       GetCursorPos(&p);
@@ -507,12 +492,12 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       Vec3 *v0 = &vertices[f->v[0]];
       Vec3 *v1 = &vertices[f->v[1]];
       Vec3 *v2 = &vertices[f->v[2]];
-      int x0 = (int)((v0->x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f);
-      int y0 = (int)((v0->y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f);
-      int x1 = (int)((v1->x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f);
-      int y1 = (int)((v1->y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f);
-      int x2 = (int)((v2->x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f);
-      int y2 = (int)((v2->y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f);
+      float x0 = (v0->x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f;
+      float y0 = (v0->y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f;
+      float x1 = (v1->x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f;
+      float y1 = (v1->y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f;
+      float x2 = (v2->x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f;
+      float y2 = (v2->y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f;
 
       Vec3 n = crossVec3(subVec3(*v2, *v0), subVec3(*v1, *v0));
       n = normalizeVec3(n);
@@ -520,7 +505,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       if (intensity > 0) {
         int c = (int)(intensity*0xFF);
         uint32_t color = makeColor(c,c,c);
-        drawTriangle(x0, y0, x1, y1, x2, y2, color);
+        drawTriangleBarycentric(x0, y0, x1, y1, x2, y2, color);
       }
     }
 #endif
