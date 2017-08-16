@@ -122,6 +122,55 @@ void drawTriangleLineSweep(int x0, int y0, int x1, int y1, int x2, int y2, uint3
   }
 }
 
+typedef struct {
+  float x, y, z;
+} Vec3;
+
+Vec3 cross(Vec3 a, Vec3 b) {
+  Vec3 r;
+  r.x = a.y*b.z - b.y*a.z;
+  r.y = b.x*a.z - a.x*b.z;
+  r.z = a.x*b.y - a.y*b.x;
+  return r;
+}
+
+Vec3 subVec3(Vec3 a, Vec3 b) {
+  Vec3 r;
+  r.x = a.x - b.x;
+  r.y = a.y - b.y;
+  r.z = a.z - b.z;
+  return r;
+}
+
+Vec3 makeVec3(float x, float y, float z) {
+  Vec3 r;
+  r.x = x;
+  r.y = y;
+  r.z = z;
+  return r;
+}
+
+float dotVec3(Vec3 a, Vec3 b) {
+  return a.x*b.x + a.y*b.y + a.z*b.z;
+}
+
+Vec3 getBarycentricCoords(Vec3 A, Vec3 B, Vec3 C, Vec3 P) {
+  Vec3 AB = subVec3(B, A);
+  Vec3 AC = subVec3(C, A);
+  Vec3 PA = subVec3(A, P);
+  Vec3 v1 = makeVec3(AB.x, AC.x, PA.x);
+  Vec3 v2 = makeVec3(AB.y, AC.y, PA.y);
+  Vec3 c = cross(v1, v2);
+  assert(fabs(dotVec3(c, v1)) < 0.0001f);
+  assert(fabs(dotVec3(c, v2)) < 0.0001f);
+  Vec3 b;
+  b.x = c.x / c.z;
+  b.y = c.y / c.z;
+  b.z = 1.0f - b.x - b.y;
+  assert(fabs((b.x + b.y + b.z) - 1.0f) < 0.0001f);
+  return b;
+}
+
 void drawTriangleBarycentric(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color) {
   int minX = x0;
   if (x1 < minX) minX = x1;
@@ -139,8 +188,15 @@ void drawTriangleBarycentric(int x0, int y0, int x1, int y1, int x2, int y2, uin
   if (y1 > maxY) maxY = y1;
   if (y2 > maxY) maxY = y2;
 
+  Vec3 A = makeVec3((float)x0, (float)y0, 0);
+  Vec3 B = makeVec3((float)x1, (float)y1, 0);
+  Vec3 C = makeVec3((float)x2, (float)y2, 0);
+
   for (int y = minY; y <= maxY; ++y) {
     for (int x = minX; x <= maxX; ++x) {
+      Vec3 p = makeVec3((float)x, (float)y, 0);
+      Vec3 b = getBarycentricCoords(A, B, C, p);
+      if (b.x < 0 || b.y < 0 || b.z < 0) continue;
       setPixel(x, y, color);
     }
   }
@@ -155,10 +211,6 @@ void drawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color
     drawTriangleLineSweep(x0, y0, x1, y1, x2, y2, color);
   }
 }
-
-typedef struct {
-  float x, y, z;
-} Vec3;
 
 typedef struct {
   int v[3];
@@ -367,6 +419,10 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
 
     if (buttonIsPressed(BUTTON_F1)) {
       debugBarycentric = !debugBarycentric;
+      if (debugBarycentric)
+        debugPrint("barycentric on\n");
+      else
+        debugPrint("barycentric off\n");
     }
 
     {
@@ -374,7 +430,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       GetCursorPos(&p);
       ScreenToClient(wnd, &p);
       mousePosX = (int) ((float)p.x / (float)WINDOW_SCALE);
-      mousePosY = (int) ((float)p.y / (float)WINDOW_SCALE);
+      mousePosY = (BACKBUFFER_HEIGHT-1) - (int) ((float)p.y / (float)WINDOW_SCALE);
       //debugPrint("%d,%d\n", mousePosX, mousePosY);
     }
 
