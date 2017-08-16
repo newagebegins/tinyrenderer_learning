@@ -15,10 +15,12 @@ void debugPrint(char *format, ...) {
   OutputDebugString(str);
 }
 
-#define BACKBUFFER_WIDTH 900
+//#define BACKBUFFER_WIDTH 900
+#define BACKBUFFER_WIDTH 200
 #define BACKBUFFER_HEIGHT BACKBUFFER_WIDTH
 #define BACKBUFFER_BYTES (BACKBUFFER_WIDTH * BACKBUFFER_HEIGHT * sizeof(uint32_t))
-#define WINDOW_SCALE 1
+//#define WINDOW_SCALE 1
+#define WINDOW_SCALE 4
 #define WINDOW_WIDTH (BACKBUFFER_WIDTH * WINDOW_SCALE)
 #define WINDOW_HEIGHT (BACKBUFFER_HEIGHT * WINDOW_SCALE)
 
@@ -89,10 +91,69 @@ void drawLine(int x1, int y1, int x2, int y2, uint32_t color) {
   }
 }
 
-void drawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color) {
+#define SWAP(x,y) {int t=x; x=y; y=t;}
+
+void drawTriangleLineSweep(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color) {
+  if (y2 < y1) {SWAP(y2, y1); SWAP(x2, x1);}
+  if (y1 < y0) {SWAP(y1, y0); SWAP(x1, x0);}
+  if (y2 < y1) {SWAP(y2, y1); SWAP(x2, x1);}
+  assert(y0 < y1 && y1 < y2);
+
+#if 0
   drawLine(x0, y0, x1, y1, color);
   drawLine(x1, y1, x2, y2, color);
   drawLine(x2, y2, x0, y0, color);
+#endif
+
+  for (int y = y0; y <= y1; ++y) {
+    float tA = (float)(y - y0) / (y1 - y0);
+    int xA = (int)((1.0f - tA)*x0 + tA*x1);
+    float tB = (float)(y - y0) / (y2 - y0);
+    int xB = (int)((1.0f - tB)*x0 + tB*x2);
+    drawLine(xA, y, xB, y, color);
+  }
+
+  for (int y = y1; y <= y2; ++y) {
+    float tA = (float)(y - y1) / (y2 - y1);
+    int xC = (int)((1.0f - tA)*x1 + tA*x2);
+    float tB = (float)(y - y0) / (y2 - y0);
+    int xD = (int)((1.0f - tB)*x0 + tB*x2);
+    drawLine(xC, y, xD, y, color);
+  }
+}
+
+void drawTriangleBarycentric(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color) {
+  int minX = x0;
+  if (x1 < minX) minX = x1;
+  if (x2 < minX) minX = x2;
+
+  int minY = y0;
+  if (y1 < minY) minY = y1;
+  if (y2 < minY) minY = y2;
+
+  int maxX = x0;
+  if (x1 > maxX) maxX = x1;
+  if (x2 > maxX) maxX = x2;
+
+  int maxY = y0;
+  if (y1 > maxY) maxY = y1;
+  if (y2 > maxY) maxY = y2;
+
+  for (int y = minY; y <= maxY; ++y) {
+    for (int x = minX; x <= maxX; ++x) {
+      setPixel(x, y, color);
+    }
+  }
+}
+
+bool debugBarycentric = true;
+
+void drawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color) {
+  if (debugBarycentric) {
+    drawTriangleBarycentric(x0, y0, x1, y1, x2, y2, color);
+  } else {
+    drawTriangleLineSweep(x0, y0, x1, y1, x2, y2, color);
+  }
 }
 
 typedef struct {
@@ -169,7 +230,7 @@ void readObjFile() {
   free(fileContents);
 }
 
-typedef enum {BUTTON_EXIT, BUTTON_ACTION, BUTTON_COUNT} Button;
+typedef enum {BUTTON_EXIT, BUTTON_ACTION, BUTTON_F1, BUTTON_COUNT} Button;
 
 bool buttonIsDown[BUTTON_COUNT];
 bool buttonWasDown[BUTTON_COUNT];
@@ -278,6 +339,9 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
               case VK_ESCAPE:
                 buttonIsDown[BUTTON_EXIT] = isDown;
                 break;
+              case VK_F1:
+                buttonIsDown[BUTTON_F1] = isDown;
+                break;
             }
           }
           break;
@@ -299,6 +363,10 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
 
     if (buttonIsDown[BUTTON_EXIT]) {
       gameIsRunning = false;
+    }
+
+    if (buttonIsPressed(BUTTON_F1)) {
+      debugBarycentric = !debugBarycentric;
     }
 
     {
