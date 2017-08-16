@@ -15,12 +15,16 @@ void debugPrint(char *format, ...) {
   OutputDebugString(str);
 }
 
-//#define BACKBUFFER_WIDTH 900
+#if 1
+#define BACKBUFFER_WIDTH 500
+#define WINDOW_SCALE 1
+#else
 #define BACKBUFFER_WIDTH 200
+#define WINDOW_SCALE 4
+#endif
+
 #define BACKBUFFER_HEIGHT BACKBUFFER_WIDTH
 #define BACKBUFFER_BYTES (BACKBUFFER_WIDTH * BACKBUFFER_HEIGHT * sizeof(uint32_t))
-//#define WINDOW_SCALE 1
-#define WINDOW_SCALE 4
 #define WINDOW_WIDTH (BACKBUFFER_WIDTH * WINDOW_SCALE)
 #define WINDOW_HEIGHT (BACKBUFFER_HEIGHT * WINDOW_SCALE)
 
@@ -97,7 +101,7 @@ void drawTriangleLineSweep(int x0, int y0, int x1, int y1, int x2, int y2, uint3
   if (y2 < y1) {SWAP(y2, y1); SWAP(x2, x1);}
   if (y1 < y0) {SWAP(y1, y0); SWAP(x1, x0);}
   if (y2 < y1) {SWAP(y2, y1); SWAP(x2, x1);}
-  assert(y0 < y1 && y1 < y2);
+  assert(y0 <= y1 && y1 <= y2);
 
 #if 0
   drawLine(x0, y0, x1, y1, color);
@@ -163,6 +167,7 @@ Vec3 getBarycentricCoords(Vec3 A, Vec3 B, Vec3 C, Vec3 P) {
   Vec3 c = cross(v1, v2);
   assert(fabs(dotVec3(c, v1)) < 0.0001f);
   assert(fabs(dotVec3(c, v2)) < 0.0001f);
+  if (fabs(c.z) < 0.0001f) return makeVec3(-1.0f, 1.0f, 1.0f);
   Vec3 b;
   b.x = c.x / c.z;
   b.y = c.y / c.z;
@@ -200,6 +205,15 @@ void drawTriangleBarycentric(int x0, int y0, int x1, int y1, int x2, int y2, uin
       setPixel(x, y, color);
     }
   }
+}
+
+uint32_t makeColor(int r, int g, int b) {
+  assert(r >= 0 && r <= 0xFF);
+  assert(g >= 0 && g <= 0xFF);
+  assert(b >= 0 && b <= 0xFF);
+  //0xFFRRGGBB
+  uint32_t color = (0xFF << 8*3) | (r << 8*2) | (g << 8*1) | (b << 8*0);
+  return color;
 }
 
 bool debugBarycentric = true;
@@ -469,9 +483,28 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
     }
 #endif
 
+#if 1
+    for (int i = 0; i < NUM_FACES; ++i) {
+      Face *f = &faces[i];
+      Vec3 *v0 = &vertices[f->v[0]];
+      Vec3 *v1 = &vertices[f->v[1]];
+      Vec3 *v2 = &vertices[f->v[2]];
+      int x0 = (int)((v0->x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f);
+      int y0 = (int)((v0->y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f);
+      int x1 = (int)((v1->x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f);
+      int y1 = (int)((v1->y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f);
+      int x2 = (int)((v2->x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f);
+      int y2 = (int)((v2->y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f);
+      uint32_t color = makeColor(rand()%256,rand()%256,rand()%256);
+      drawTriangle(x0, y0, x1, y1, x2, y2, color);
+    }
+#endif
+
+#if 0
     drawTriangle(10, 70, 50, 160, 70, 80, RED);
     drawTriangle(180, 50, 150, 1, 70, 180, WHITE);
     drawTriangle(180, 150, 120, 160, 130, 180, GREEN);
+#endif
 
     StretchDIBits(deviceContext,
                   0, 0, WINDOW_WIDTH, WINDOW_HEIGHT,
