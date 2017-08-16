@@ -16,7 +16,7 @@ void debugPrint(char *format, ...) {
 }
 
 #if 1
-#define BACKBUFFER_WIDTH 500
+#define BACKBUFFER_WIDTH 900
 #define WINDOW_SCALE 1
 #else
 #define BACKBUFFER_WIDTH 200
@@ -130,7 +130,7 @@ typedef struct {
   float x, y, z;
 } Vec3;
 
-Vec3 cross(Vec3 a, Vec3 b) {
+Vec3 crossVec3(Vec3 a, Vec3 b) {
   Vec3 r;
   r.x = a.y*b.z - b.y*a.z;
   r.y = b.x*a.z - a.x*b.z;
@@ -158,13 +158,29 @@ float dotVec3(Vec3 a, Vec3 b) {
   return a.x*b.x + a.y*b.y + a.z*b.z;
 }
 
+float lengthSquaredVec3(Vec3 v) {
+  return dotVec3(v,v);
+}
+
+float lengthVec3(Vec3 v) {
+  return sqrtf(lengthSquaredVec3(v));
+}
+
+Vec3 scaleVec3(Vec3 v, float a) {
+  return makeVec3(v.x*a, v.y*a, v.z*a);
+}
+
+Vec3 normalizeVec3(Vec3 v) {
+  return scaleVec3(v, 1.0f / lengthVec3(v));
+}
+
 Vec3 getBarycentricCoords(Vec3 A, Vec3 B, Vec3 C, Vec3 P) {
   Vec3 AB = subVec3(B, A);
   Vec3 AC = subVec3(C, A);
   Vec3 PA = subVec3(A, P);
   Vec3 v1 = makeVec3(AB.x, AC.x, PA.x);
   Vec3 v2 = makeVec3(AB.y, AC.y, PA.y);
-  Vec3 c = cross(v1, v2);
+  Vec3 c = crossVec3(v1, v2);
   assert(fabs(dotVec3(c, v1)) < 0.0001f);
   assert(fabs(dotVec3(c, v2)) < 0.0001f);
   if (fabs(c.z) < 0.0001f) return makeVec3(-1.0f, 1.0f, 1.0f);
@@ -483,6 +499,8 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
     }
 #endif
 
+    Vec3 lightDir = makeVec3(0,0,-1);
+
 #if 1
     for (int i = 0; i < NUM_FACES; ++i) {
       Face *f = &faces[i];
@@ -495,8 +513,15 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       int y1 = (int)((v1->y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f);
       int x2 = (int)((v2->x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f);
       int y2 = (int)((v2->y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f);
-      uint32_t color = makeColor(rand()%256,rand()%256,rand()%256);
-      drawTriangle(x0, y0, x1, y1, x2, y2, color);
+
+      Vec3 n = crossVec3(subVec3(*v2, *v0), subVec3(*v1, *v0));
+      n = normalizeVec3(n);
+      float intensity = dotVec3(n, lightDir);
+      if (intensity > 0) {
+        int c = (int)(intensity*0xFF);
+        uint32_t color = makeColor(c,c,c);
+        drawTriangle(x0, y0, x1, y1, x2, y2, color);
+      }
     }
 #endif
 
