@@ -181,16 +181,16 @@ Vec3 getBarycentricCoords(Vec3 A, Vec3 B, Vec3 C, Vec3 P) {
   Vec3 v1 = makeVec3(AB.x, AC.x, PA.x);
   Vec3 v2 = makeVec3(AB.y, AC.y, PA.y);
   Vec3 c = crossVec3(v1, v2);
-  if (fabs(c.z) < 0.0001f) return makeVec3(-1.0f, 1.0f, 1.0f);
-  Vec3 b;
-  b.x = c.x / c.z;
-  b.y = c.y / c.z;
-  b.z = 1.0f - b.x - b.y;
-  assert(fabs((b.x + b.y + b.z) - 1.0f) < 0.0001f);
-  return b;
+  if (fabs(c.z) < 0.00001f) return makeVec3(-1.0f, 1.0f, 1.0f);
+  float u = c.x / c.z;
+  float v = c.y / c.z;
+  float w = 1.0f - u - v;
+  return makeVec3(w, u, v);
 }
 
-void drawTriangleBarycentric(float x0, float y0, float x1, float y1, float x2, float y2, uint32_t color) {
+float zBuffer[BACKBUFFER_WIDTH*BACKBUFFER_HEIGHT];
+
+void drawTriangleBarycentric(float x0, float y0, float z0, float x1, float y1, float z1, float x2, float y2, float z2, uint32_t color) {
   float minX = x0;
   if (x1 < minX) minX = x1;
   if (x2 < minX) minX = x2;
@@ -221,7 +221,12 @@ void drawTriangleBarycentric(float x0, float y0, float x1, float y1, float x2, f
       Vec3 p = makeVec3((float)x, (float)y, 0);
       Vec3 b = getBarycentricCoords(A, B, C, p);
       if (b.x < 0 || b.y < 0 || b.z < 0) continue;
-      setPixel(x, y, color);
+      float z = z0*b.x + z1*b.y + z2*b.z;
+      int i = x + BACKBUFFER_WIDTH*y;
+      if (z > zBuffer[i]) {
+        zBuffer[i] = z;
+        setPixel(x, y, color);
+      }
     }
   }
 }
@@ -486,6 +491,10 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
 
     Vec3 lightDir = makeVec3(0,0,-1);
 
+    for (int i = 0; i < BACKBUFFER_WIDTH*BACKBUFFER_HEIGHT; ++i) {
+      zBuffer[i] = -9999.0f;
+    }
+
 #if 1
     for (int i = 0; i < NUM_FACES; ++i) {
       Face *f = &faces[i];
@@ -505,7 +514,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       if (intensity > 0) {
         int c = (int)(intensity*0xFF);
         uint32_t color = makeColor(c,c,c);
-        drawTriangleBarycentric(x0, y0, x1, y1, x2, y2, color);
+        drawTriangleBarycentric(x0, y0, v0->z, x1, y1, v1->z, x2, y2, v2->z, color);
       }
     }
 #endif
