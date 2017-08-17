@@ -29,7 +29,7 @@ void debugPrint(char *format, ...) {
 }
 
 #if 1
-#define BACKBUFFER_WIDTH 1024
+#define BACKBUFFER_WIDTH 900
 #define WINDOW_SCALE 1
 #else
 #define BACKBUFFER_WIDTH 100
@@ -586,7 +586,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       //debugPrint("%d,%d\n", mousePosX, mousePosY);
     }
 
-    drawFilledRect(0, 0, BACKBUFFER_WIDTH-1, BACKBUFFER_HEIGHT-1, 0xFF111133);
+    drawFilledRect(0, 0, BACKBUFFER_WIDTH-1, BACKBUFFER_HEIGHT-1, makeColor(135, 181, 218));
 
 #if 0
     drawLine(13, 20, 80, 40, WHITE);
