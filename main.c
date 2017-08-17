@@ -6,6 +6,19 @@
 #include <stdbool.h>
 #include <float.h>
 
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+
+typedef int8_t i8;
+typedef int16_t i16;
+typedef int32_t i32;
+typedef int64_t i64;
+
+typedef float f32;
+typedef double f64;
+
 void debugPrint(char *format, ...) {
   va_list argptr;
   va_start(argptr, format);
@@ -16,11 +29,11 @@ void debugPrint(char *format, ...) {
 }
 
 #if 1
-#define BACKBUFFER_WIDTH 900
+#define BACKBUFFER_WIDTH 1024
 #define WINDOW_SCALE 1
 #else
-#define BACKBUFFER_WIDTH 200
-#define WINDOW_SCALE 4
+#define BACKBUFFER_WIDTH 100
+#define WINDOW_SCALE 8
 #endif
 
 #define BACKBUFFER_HEIGHT BACKBUFFER_WIDTH
@@ -188,9 +201,110 @@ Vec3 getBarycentricCoords(Vec3 A, Vec3 B, Vec3 C, Vec3 P) {
   return makeVec3(w, u, v);
 }
 
+uint32_t makeColor(int r, int g, int b) {
+  assert(r >= 0 && r <= 0xFF);
+  assert(g >= 0 && g <= 0xFF);
+  assert(b >= 0 && b <= 0xFF);
+  //0xFFRRGGBB
+  uint32_t color = (0xFF << 8*3) | (r << 8*2) | (g << 8*1) | (b << 8*0);
+  return color;
+}
+
+#pragma pack(push, 1)
+typedef struct {
+  u16 origin;
+  u16 length;
+  u8 bitsPerEntry;
+} TGAColorMap;
+
+typedef struct {
+  u16 xOrigin;
+  u16 yOrigin;
+  u16 width;
+  u16 height;
+  u8 bitsPerPixel;
+  u8 descriptor;
+} TGAImageSpecification;
+
+typedef struct {
+  u8 numCharsInIdField;
+  u8 colorMapType;
+  u8 imageType;
+  TGAColorMap colorMap;
+  TGAImageSpecification imageSpec;
+} TGAHeader;
+#pragma pack(pop)
+
+typedef struct {
+  u32 *pixels;
+  u32 width;
+  u32 height;
+} Texture;
+
+Texture readTGAFile(char *filePath) {
+  Texture result;
+  BOOL success;
+
+  HANDLE fileHandle = CreateFile(filePath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+  assert(fileHandle != INVALID_HANDLE_VALUE);
+
+  LARGE_INTEGER fileSize;
+  success = GetFileSizeEx(fileHandle, &fileSize);
+  assert(success);
+
+  u8 *fileContents = malloc(fileSize.LowPart);
+
+  DWORD numBytesRead;
+  success = ReadFile(fileHandle, fileContents, fileSize.LowPart, &numBytesRead, NULL);
+  assert(success);
+  assert(numBytesRead == fileSize.LowPart);
+
+  TGAHeader *header = (TGAHeader *)fileContents;
+  u8 *data = fileContents + sizeof(TGAHeader);
+  assert(header->imageType == 10);
+  assert(header->imageSpec.bitsPerPixel == 24);
+  assert(header->numCharsInIdField == 0);
+  assert(header->colorMapType == 0);
+  assert(header->imageSpec.xOrigin == 0);
+  assert(header->imageSpec.yOrigin == 0);
+  result.width = header->imageSpec.width;
+  result.height = header->imageSpec.height;
+  result.pixels = malloc(result.width * result.height * sizeof(u32));
+  u32 *tex = result.pixels;
+  u32 *texEnd = result.pixels + (result.width*result.height);
+
+  while (tex < texEnd) {
+    bool isRLE = *data & 0x80;
+    u8 length = (*(data++) & 0x7F) + 1;
+    if (isRLE) {
+      u8 b = *(data++);
+      u8 g = *(data++);
+      u8 r = *(data++);
+      u32 color = makeColor(r, g, b);
+      for (int j = 0; j < length; ++j) {
+        *(tex++) = color;
+      }
+    } else {
+      for (int j = 0; j < length; ++j) {
+        u8 b = *(data++);
+        u8 g = *(data++);
+        u8 r = *(data++);
+        u32 color = makeColor(r, g, b);
+        *(tex++) = color;
+      }
+    }
+  }
+
+  free(fileContents);
+  return result;
+}
+
 float zBuffer[BACKBUFFER_WIDTH*BACKBUFFER_HEIGHT];
 
-void drawTriangleBarycentric(float x0, float y0, float z0, float x1, float y1, float z1, float x2, float y2, float z2, uint32_t color) {
+void drawTriangleBarycentric(float x0, float y0, float z0, float u0, float v0,
+                             float x1, float y1, float z1, float u1, float v1,
+                             float x2, float y2, float z2, float u2, float v2,
+                             Texture texture) {
   float minX = x0;
   if (x1 < minX) minX = x1;
   if (x2 < minX) minX = x2;
@@ -225,23 +339,20 @@ void drawTriangleBarycentric(float x0, float y0, float z0, float x1, float y1, f
       int i = x + BACKBUFFER_WIDTH*y;
       if (z > zBuffer[i]) {
         zBuffer[i] = z;
+        float u = u0*b.x + u1*b.y + u2*b.z;
+        float v = v0*b.x + v1*b.y + v2*b.z;
+        int tx = (int)(u*(texture.width-1));
+        int ty = (int)(v*(texture.height-1));
+        u32 color = texture.pixels[tx + ty*texture.width];
         setPixel(x, y, color);
       }
     }
   }
 }
 
-uint32_t makeColor(int r, int g, int b) {
-  assert(r >= 0 && r <= 0xFF);
-  assert(g >= 0 && g <= 0xFF);
-  assert(b >= 0 && b <= 0xFF);
-  //0xFFRRGGBB
-  uint32_t color = (0xFF << 8*3) | (r << 8*2) | (g << 8*1) | (b << 8*0);
-  return color;
-}
-
 typedef struct {
   int v[3];
+  int vt[3];
 } Face;
 
 #define NUM_VERTICES 1258
@@ -249,6 +360,9 @@ Vec3 vertices[NUM_VERTICES];
 
 #define NUM_FACES 2492
 Face faces[NUM_FACES];
+
+#define NUM_TEX_VERTS 1339
+Vec3 texVerts[NUM_TEX_VERTS];
 
 void readObjFile() {
   BOOL success;
@@ -271,6 +385,7 @@ void readObjFile() {
   char *end = fileContents + fileSize.LowPart;
 
   Vec3 *v = vertices;
+  Vec3 *vt = texVerts;
   Face *f = faces;
 
   while (p < end) {
@@ -289,16 +404,27 @@ void readObjFile() {
         assert(numAssigned == 3);
         ++v;
       }
-      if (line[0] == 'f' && line[1] == ' ') {
+      else if (line[0] == 'v' && line[1] == 't' && line[2] == ' ') {
+        int numAssigned = sscanf_s(line, "vt %f %f %f", &vt->x, &vt->y, &vt->z);
+        assert(numAssigned == 3);
+        ++vt;
+      }
+      else if (line[0] == 'f' && line[1] == ' ') {
         int trash;
-        int numAssigned = sscanf_s(line, "f %d/%d/%d %d/%d/%d %d/%d/%d", &f->v[0], &trash, &trash, &f->v[1], &trash, &trash, &f->v[2], &trash, &trash);
+        int numAssigned = sscanf_s(line, "f %d/%d/%d %d/%d/%d %d/%d/%d", &f->v[0], &f->vt[0], &trash, &f->v[1], &f->vt[1], &trash, &f->v[2], &f->vt[2], &trash);
         assert(numAssigned == 9);
         f->v[0] -= 1;
         f->v[1] -= 1;
         f->v[2] -= 1;
+        f->vt[0] -= 1;
+        f->vt[1] -= 1;
+        f->vt[2] -= 1;
         assert(f->v[0] >= 0 && f->v[0] < NUM_VERTICES);
         assert(f->v[1] >= 0 && f->v[1] < NUM_VERTICES);
         assert(f->v[2] >= 0 && f->v[2] < NUM_VERTICES);
+        assert(f->vt[0] >= 0 && f->vt[0] < NUM_TEX_VERTS);
+        assert(f->vt[1] >= 0 && f->vt[1] < NUM_TEX_VERTS);
+        assert(f->vt[2] >= 0 && f->vt[2] < NUM_TEX_VERTS);
         ++f;
       }
     }
@@ -349,7 +475,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
   DWORD wndStyle = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
   AdjustWindowRect(&crect, wndStyle, 0);
 
-  HWND wnd = CreateWindowEx(0, wndClass.lpszClassName, "Renderer", wndStyle, 300, 50,
+  HWND wnd = CreateWindowEx(0, wndClass.lpszClassName, "Renderer", wndStyle, 300, 0,
                             crect.right - crect.left, crect.bottom - crect.top,
                             0, 0, inst, 0);
   ShowWindow(wnd, cmdShow);
@@ -389,6 +515,12 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
   //
 
   readObjFile();
+
+#if 1
+  Texture texture = readTGAFile("african_head_diffuse.tga");
+#else
+  Texture texture = readTGAFile("test.tga");
+#endif
 
   bool gameIsRunning = true;
 
@@ -489,18 +621,20 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
     }
 #endif
 
-    Vec3 lightDir = makeVec3(0,0,-1);
-
     for (int i = 0; i < BACKBUFFER_WIDTH*BACKBUFFER_HEIGHT; ++i) {
       zBuffer[i] = -9999.0f;
     }
 
 #if 1
+    Vec3 lightDir = makeVec3(0,0,-1);
     for (int i = 0; i < NUM_FACES; ++i) {
       Face *f = &faces[i];
       Vec3 *v0 = &vertices[f->v[0]];
       Vec3 *v1 = &vertices[f->v[1]];
       Vec3 *v2 = &vertices[f->v[2]];
+      Vec3 *vt0 = &texVerts[f->vt[0]];
+      Vec3 *vt1 = &texVerts[f->vt[1]];
+      Vec3 *vt2 = &texVerts[f->vt[2]];
       float x0 = (v0->x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f;
       float y0 = (v0->y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f;
       float x1 = (v1->x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f;
@@ -512,11 +646,33 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       n = normalizeVec3(n);
       float intensity = dotVec3(n, lightDir);
       if (intensity > 0) {
-        int c = (int)(intensity*0xFF);
-        uint32_t color = makeColor(c,c,c);
-        drawTriangleBarycentric(x0, y0, v0->z, x1, y1, v1->z, x2, y2, v2->z, color);
+        drawTriangleBarycentric(x0, y0, v0->z, vt0->x, vt0->y,
+                                x1, y1, v1->z, vt1->x, vt1->y,
+                                x2, y2, v2->z, vt2->x, vt2->y,
+                                texture);
       }
     }
+#endif
+
+#if 0
+#if 0
+    for (u32 i = 0; i < TEX_SIZE; ++i) {
+      f32 tx = (f32)(i % TEX_WIDTH) / (TEX_WIDTH-1);
+      f32 ty = (f32)(i / TEX_WIDTH) / (TEX_WIDTH-1);
+      u32 x = (u32)(tx*(BACKBUFFER_WIDTH-1));
+      u32 y = (u32)(ty*(BACKBUFFER_HEIGHT-1));
+      u32 color = texture[i];
+      setPixel(x, y, color);
+    }
+#else
+    for (u32 i = 0; i < texture.width*texture.height; ++i) {
+      u32 x = i % texture.width;
+      u32 y = i / texture.width;
+      u32 color = texture.pixels[i];
+      if (x < BACKBUFFER_WIDTH && y < BACKBUFFER_HEIGHT)
+        setPixel(x, y, color);
+    }
+#endif
 #endif
 
 #if 0
