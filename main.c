@@ -250,6 +250,16 @@ uint32_t makeColor(int r, int g, int b) {
   return color;
 }
 
+u32 scaleColor(u32 color, float scale) {
+  u8 r = (color >> 8*2) & 0xFF;
+  u8 g = (color >> 8*1) & 0xFF;
+  u8 b = (color >> 8*0) & 0xFF;
+  u8 newR = (u8)(r*scale);
+  u8 newG = (u8)(g*scale);
+  u8 newB = (u8)(b*scale);
+  return makeColor(newR, newG, newB);
+}
+
 #pragma pack(push, 1)
 typedef struct {
   u16 origin;
@@ -340,7 +350,8 @@ Texture readTGAFile(char *filePath) {
 }
 
 float zBuffer[BACKBUFFER_WIDTH*BACKBUFFER_HEIGHT];
-bool isTextured = false;
+bool isTextured = true;
+bool isGoroud = true;
 
 void drawTriangleBarycentric(float x0, float y0, float z0, float u0, float v0,
                              float x1, float y1, float z1, float u1, float v1,
@@ -384,19 +395,27 @@ void drawTriangleBarycentric(float x0, float y0, float z0, float u0, float v0,
       assert(i >= 0 && i < BACKBUFFER_WIDTH*BACKBUFFER_HEIGHT);
       if (z > zBuffer[i]) {
         zBuffer[i] = z;
+
+        // texture
+        float u = u0*b.x + u1*b.y + u2*b.z;
+        float v = v0*b.x + v1*b.y + v2*b.z;
+        int tx = (int)(u*(texture.width-1));
+        int ty = (int)(v*(texture.height-1));
+        u32 texColor = texture.pixels[tx + ty*texture.width];
+
+        // goroud shading
+        float intensity = in0*b.x + in1*b.y + in2*b.z;
+
         u32 color;
+
         if (isTextured) {
-          float u = u0*b.x + u1*b.y + u2*b.z;
-          float v = v0*b.x + v1*b.y + v2*b.z;
-          int tx = (int)(u*(texture.width-1));
-          int ty = (int)(v*(texture.height-1));
-          color = texture.pixels[tx + ty*texture.width];
+          if (isGoroud) {
+            color = scaleColor(texColor, intensity);
+          } else {
+            color = texColor;
+          }
         } else {
-          float c0 = in0*255.0f;
-          float c1 = in1*255.0f;
-          float c2 = in2*255.0f;
-          int g = (int)(c0*b.x + c1*b.y + c2*b.z);
-          //if (g < 0) g = 0;
+          int g = (int)(intensity*255.0f);
           color = makeColor(g,g,g);
         }
         setPixel(x, y, color);
@@ -504,7 +523,7 @@ void readObjFile() {
   free(fileContents);
 }
 
-typedef enum {BUTTON_EXIT, BUTTON_ACTION, BUTTON_F1, BUTTON_F2, BUTTON_F3, BUTTON_F4, BUTTON_COUNT} Button;
+typedef enum {BUTTON_EXIT, BUTTON_ACTION, BUTTON_F1, BUTTON_F2, BUTTON_F3, BUTTON_F4, BUTTON_F5, BUTTON_COUNT} Button;
 
 bool buttonIsDown[BUTTON_COUNT];
 bool buttonWasDown[BUTTON_COUNT];
@@ -631,6 +650,8 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
                 break;
               case VK_F4:
                 buttonIsDown[BUTTON_F4] = isDown;
+              case VK_F5:
+                buttonIsDown[BUTTON_F5] = isDown;
                 break;
             }
           }
@@ -663,6 +684,11 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       isTextured = !isTextured;
       if (isTextured) debugPrint("texture on\n");
       else debugPrint("texture off\n");
+    }
+    if (buttonIsPressed(BUTTON_F5)) {
+      isGoroud = !isGoroud;
+      if (isGoroud) debugPrint("goroud on\n");
+      else debugPrint("goroud off\n");
     }
 
     {
