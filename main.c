@@ -340,10 +340,12 @@ Texture readTGAFile(char *filePath) {
 }
 
 float zBuffer[BACKBUFFER_WIDTH*BACKBUFFER_HEIGHT];
+bool isTextured = false;
 
 void drawTriangleBarycentric(float x0, float y0, float z0, float u0, float v0,
                              float x1, float y1, float z1, float u1, float v1,
                              float x2, float y2, float z2, float u2, float v2,
+                             float in0, float in1, float in2,
                              Texture texture) {
   float minX = x0;
   if (x1 < minX) minX = x1;
@@ -382,11 +384,21 @@ void drawTriangleBarycentric(float x0, float y0, float z0, float u0, float v0,
       assert(i >= 0 && i < BACKBUFFER_WIDTH*BACKBUFFER_HEIGHT);
       if (z > zBuffer[i]) {
         zBuffer[i] = z;
-        float u = u0*b.x + u1*b.y + u2*b.z;
-        float v = v0*b.x + v1*b.y + v2*b.z;
-        int tx = (int)(u*(texture.width-1));
-        int ty = (int)(v*(texture.height-1));
-        u32 color = texture.pixels[tx + ty*texture.width];
+        u32 color;
+        if (isTextured) {
+          float u = u0*b.x + u1*b.y + u2*b.z;
+          float v = v0*b.x + v1*b.y + v2*b.z;
+          int tx = (int)(u*(texture.width-1));
+          int ty = (int)(v*(texture.height-1));
+          color = texture.pixels[tx + ty*texture.width];
+        } else {
+          float c0 = in0*255.0f;
+          float c1 = in1*255.0f;
+          float c2 = in2*255.0f;
+          int g = (int)(c0*b.x + c1*b.y + c2*b.z);
+          //if (g < 0) g = 0;
+          color = makeColor(g,g,g);
+        }
         setPixel(x, y, color);
       }
     }
@@ -396,10 +408,12 @@ void drawTriangleBarycentric(float x0, float y0, float z0, float u0, float v0,
 typedef struct {
   int v[3];
   int vt[3];
+  int vn[3];
 } Face;
 
 #define NUM_VERTICES 1258
 Vec3 vertices[NUM_VERTICES];
+Vec3 normals[NUM_VERTICES];
 
 #define NUM_FACES 2492
 Face faces[NUM_FACES];
@@ -429,6 +443,7 @@ void readObjFile() {
 
   Vec3 *v = vertices;
   Vec3 *vt = texVerts;
+  Vec3 *vn = normals;
   Face *f = faces;
 
   while (p < end) {
@@ -452,9 +467,13 @@ void readObjFile() {
         assert(numAssigned == 3);
         ++vt;
       }
+      else if (line[0] == 'v' && line[1] == 'n' && line[2] == ' ') {
+        int numAssigned = sscanf_s(line, "vn %f %f %f", &vn->x, &vn->y, &vn->z);
+        assert(numAssigned == 3);
+        ++vn;
+      }
       else if (line[0] == 'f' && line[1] == ' ') {
-        int trash;
-        int numAssigned = sscanf_s(line, "f %d/%d/%d %d/%d/%d %d/%d/%d", &f->v[0], &f->vt[0], &trash, &f->v[1], &f->vt[1], &trash, &f->v[2], &f->vt[2], &trash);
+        int numAssigned = sscanf_s(line, "f %d/%d/%d %d/%d/%d %d/%d/%d", &f->v[0], &f->vt[0], &f->vn[0], &f->v[1], &f->vt[1], &f->vn[1], &f->v[2], &f->vt[2], &f->vn[2]);
         assert(numAssigned == 9);
         f->v[0] -= 1;
         f->v[1] -= 1;
@@ -462,12 +481,18 @@ void readObjFile() {
         f->vt[0] -= 1;
         f->vt[1] -= 1;
         f->vt[2] -= 1;
+        f->vn[0] -= 1;
+        f->vn[1] -= 1;
+        f->vn[2] -= 1;
         assert(f->v[0] >= 0 && f->v[0] < NUM_VERTICES);
         assert(f->v[1] >= 0 && f->v[1] < NUM_VERTICES);
         assert(f->v[2] >= 0 && f->v[2] < NUM_VERTICES);
         assert(f->vt[0] >= 0 && f->vt[0] < NUM_TEX_VERTS);
         assert(f->vt[1] >= 0 && f->vt[1] < NUM_TEX_VERTS);
         assert(f->vt[2] >= 0 && f->vt[2] < NUM_TEX_VERTS);
+        assert(f->vn[0] >= 0 && f->vn[0] < NUM_VERTICES);
+        assert(f->vn[1] >= 0 && f->vn[1] < NUM_VERTICES);
+        assert(f->vn[2] >= 0 && f->vn[2] < NUM_VERTICES);
         ++f;
       }
     }
@@ -479,7 +504,7 @@ void readObjFile() {
   free(fileContents);
 }
 
-typedef enum {BUTTON_EXIT, BUTTON_ACTION, BUTTON_F1, BUTTON_F2, BUTTON_F3, BUTTON_COUNT} Button;
+typedef enum {BUTTON_EXIT, BUTTON_ACTION, BUTTON_F1, BUTTON_F2, BUTTON_F3, BUTTON_F4, BUTTON_COUNT} Button;
 
 bool buttonIsDown[BUTTON_COUNT];
 bool buttonWasDown[BUTTON_COUNT];
@@ -604,6 +629,9 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
               case VK_F3:
                 buttonIsDown[BUTTON_F3] = isDown;
                 break;
+              case VK_F4:
+                buttonIsDown[BUTTON_F4] = isDown;
+                break;
             }
           }
           break;
@@ -630,6 +658,11 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
     static bool perspectiveEnabled = true;
     if (buttonIsPressed(BUTTON_F1)) {
       perspectiveEnabled = !perspectiveEnabled;
+    }
+    if (buttonIsPressed(BUTTON_F4)) {
+      isTextured = !isTextured;
+      if (isTextured) debugPrint("texture on\n");
+      else debugPrint("texture off\n");
     }
 
     {
@@ -735,13 +768,27 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       float x2 = (v2.x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f;
       float y2 = (v2.y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f;
 
-      Vec3 n = crossVec3(subVec3(v2, v0), subVec3(v1, v0));
+      Vec3 n = crossVec3(subVec3(v1, v0), subVec3(v2, v0));
       n = normalizeVec3(n);
-      float intensity = dotVec3(n, lightDir);
+      float intensity = -dotVec3(n, lightDir);
+      Vec3 n0 = normals[f->vn[0]];
+      Vec3 n1 = normals[f->vn[1]];
+      Vec3 n2 = normals[f->vn[2]];
+
+      float in0 = -dotVec3(n0, lightDir);
+      float in1 = -dotVec3(n1, lightDir);
+      float in2 = -dotVec3(n2, lightDir);
+      if (in0 < 0) in0 = 0;
+      if (in1 < 0) in1 = 0;
+      if (in2 < 0) in2 = 0;
+      assert(in0 >= 0.0f && in0 <= 1.0f);
+      assert(in1 >= 0.0f && in1 <= 1.0f);
+      assert(in2 >= 0.0f && in2 <= 1.0f);
       if (intensity > 0) {
         drawTriangleBarycentric(x0, y0, v0.z, vt0->x, vt0->y,
                                 x1, y1, v1.z, vt1->x, vt1->y,
                                 x2, y2, v2.z, vt2->x, vt2->y,
+                                in0, in1, in2,
                                 texture);
       }
     }
