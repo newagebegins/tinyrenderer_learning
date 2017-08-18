@@ -29,7 +29,7 @@ void debugPrint(char *format, ...) {
 }
 
 #if 1
-#define BACKBUFFER_WIDTH 900
+#define BACKBUFFER_WIDTH 500
 #define WINDOW_SCALE 1
 #else
 #define BACKBUFFER_WIDTH 100
@@ -48,9 +48,11 @@ void debugPrint(char *format, ...) {
 uint32_t *backbuffer;
 
 void setPixel(int x, int y, uint32_t color) {
-  assert(x >= 0 && x < BACKBUFFER_WIDTH);
-  assert(y >= 0 && y < BACKBUFFER_HEIGHT);
-  backbuffer[y*BACKBUFFER_WIDTH + x] = color;
+  /* assert(x >= 0 && x < BACKBUFFER_WIDTH); */
+  /* assert(y >= 0 && y < BACKBUFFER_HEIGHT); */
+
+  if (x >= 0 && x < BACKBUFFER_WIDTH && y >= 0 && y < BACKBUFFER_HEIGHT)
+    backbuffer[y*BACKBUFFER_WIDTH + x] = color;
 }
 
 void drawFilledRect(int left, int top, int right, int bottom, uint32_t color) {
@@ -185,6 +187,44 @@ Vec3 scaleVec3(Vec3 v, float a) {
 
 Vec3 normalizeVec3(Vec3 v) {
   return scaleVec3(v, 1.0f / lengthVec3(v));
+}
+
+typedef struct {
+  float x, y, z, w;
+} Vec4;
+
+Vec4 makeVec4(float x, float y, float z, float w) {
+  Vec4 r;
+  r.x = x;
+  r.y = y;
+  r.z = z;
+  r.w = w;
+  return r;
+}
+
+typedef struct {
+  float d[4][4];
+} Mat4;
+
+Mat4 makeMat4(float d00, float d01, float d02, float d03,
+              float d10, float d11, float d12, float d13,
+              float d20, float d21, float d22, float d23,
+              float d30, float d31, float d32, float d33) {
+  Mat4 m;
+  m.d[0][0] = d00; m.d[0][1] = d01; m.d[0][2] = d02; m.d[0][3] = d03;
+  m.d[1][0] = d10; m.d[1][1] = d11; m.d[1][2] = d12; m.d[1][3] = d13;
+  m.d[2][0] = d20; m.d[2][1] = d21; m.d[2][2] = d22; m.d[2][3] = d23;
+  m.d[3][0] = d30; m.d[3][1] = d31; m.d[3][2] = d32; m.d[3][3] = d33;
+  return m;
+}
+
+Vec4 mulMatVec4(Mat4 m, Vec4 v) {
+  Vec4 r;
+  r.x = m.d[0][0]*v.x + m.d[0][1]*v.y + m.d[0][2]*v.z + m.d[0][3]*v.w;
+  r.y = m.d[1][0]*v.x + m.d[1][1]*v.y + m.d[1][2]*v.z + m.d[1][3]*v.w;
+  r.z = m.d[2][0]*v.x + m.d[2][1]*v.y + m.d[2][2]*v.z + m.d[2][3]*v.w;
+  r.w = m.d[3][0]*v.x + m.d[3][1]*v.y + m.d[3][2]*v.z + m.d[3][3]*v.w;
+  return r;
 }
 
 Vec3 getBarycentricCoords(Vec3 A, Vec3 B, Vec3 C, Vec3 P) {
@@ -332,11 +372,14 @@ void drawTriangleBarycentric(float x0, float y0, float z0, float u0, float v0,
 
   for (int y = minYi; y <= maxYi; ++y) {
     for (int x = minXi; x <= maxXi; ++x) {
+      if (x < 0 || x >= BACKBUFFER_WIDTH) continue;
+      if (y < 0 || y >= BACKBUFFER_HEIGHT) continue;
       Vec3 p = makeVec3((float)x, (float)y, 0);
       Vec3 b = getBarycentricCoords(A, B, C, p);
       if (b.x < 0 || b.y < 0 || b.z < 0) continue;
       float z = z0*b.x + z1*b.y + z2*b.z;
       int i = x + BACKBUFFER_WIDTH*y;
+      assert(i >= 0 && i < BACKBUFFER_WIDTH*BACKBUFFER_HEIGHT);
       if (z > zBuffer[i]) {
         zBuffer[i] = z;
         float u = u0*b.x + u1*b.y + u2*b.z;
@@ -436,7 +479,7 @@ void readObjFile() {
   free(fileContents);
 }
 
-typedef enum {BUTTON_EXIT, BUTTON_ACTION, BUTTON_F1, BUTTON_COUNT} Button;
+typedef enum {BUTTON_EXIT, BUTTON_ACTION, BUTTON_F1, BUTTON_F2, BUTTON_F3, BUTTON_COUNT} Button;
 
 bool buttonIsDown[BUTTON_COUNT];
 bool buttonWasDown[BUTTON_COUNT];
@@ -512,6 +555,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
   int mousePosX = 0;
   int mousePosY = 0;
 
+  float cameraZ = 4.0f;
   //
 
   readObjFile();
@@ -554,6 +598,12 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
               case VK_F1:
                 buttonIsDown[BUTTON_F1] = isDown;
                 break;
+              case VK_F2:
+                buttonIsDown[BUTTON_F2] = isDown;
+                break;
+              case VK_F3:
+                buttonIsDown[BUTTON_F3] = isDown;
+                break;
             }
           }
           break;
@@ -575,6 +625,11 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
 
     if (buttonIsDown[BUTTON_EXIT]) {
       gameIsRunning = false;
+    }
+
+    static bool perspectiveEnabled = true;
+    if (buttonIsPressed(BUTTON_F1)) {
+      perspectiveEnabled = !perspectiveEnabled;
     }
 
     {
@@ -627,28 +682,66 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
 
 #if 1
     Vec3 lightDir = makeVec3(0,0,-1);
+    float cameraStep = 0.5f;
+    if (buttonIsDown[BUTTON_F3]) {
+      cameraZ += cameraStep;
+      debugPrint("cameraZ: %f\n", cameraZ);
+    }
+    if (buttonIsDown[BUTTON_F2]) {
+      cameraZ -= cameraStep;
+      debugPrint("cameraZ: %f\n", cameraZ);
+    }
+    float r = -1.0f/cameraZ;
+    Mat4 projectionMatrix = makeMat4(1,0,0,0,
+                                     0,1,0,0,
+                                     0,0,1,0,
+                                     0,0,r,1);
     for (int i = 0; i < NUM_FACES; ++i) {
       Face *f = &faces[i];
-      Vec3 *v0 = &vertices[f->v[0]];
-      Vec3 *v1 = &vertices[f->v[1]];
-      Vec3 *v2 = &vertices[f->v[2]];
+
+      Vec3 v0orig = vertices[f->v[0]];
+      Vec3 v1orig = vertices[f->v[1]];
+      Vec3 v2orig = vertices[f->v[2]];
+
+      Vec4 v04 = makeVec4(v0orig.x, v0orig.y, v0orig.z, 1.0f);
+      Vec4 v14 = makeVec4(v1orig.x, v1orig.y, v1orig.z, 1.0f);
+      Vec4 v24 = makeVec4(v2orig.x, v2orig.y, v2orig.z, 1.0f);
+
+      Vec4 v0h = mulMatVec4(projectionMatrix, v04);
+      Vec4 v1h = mulMatVec4(projectionMatrix, v14);
+      Vec4 v2h = mulMatVec4(projectionMatrix, v24);
+
+      Vec3 v0;
+      Vec3 v1;
+      Vec3 v2;
+      if (perspectiveEnabled) {
+        v0 = makeVec3(v0h.x/v0h.w, v0h.y/v0h.w, v0h.z/v0h.w);
+        v1 = makeVec3(v1h.x/v1h.w, v1h.y/v1h.w, v1h.z/v1h.w);
+        v2 = makeVec3(v2h.x/v2h.w, v2h.y/v2h.w, v2h.z/v2h.w);
+      } else {
+        v0 = v0orig;
+        v1 = v1orig;
+        v2 = v2orig;
+      }
+
       Vec3 *vt0 = &texVerts[f->vt[0]];
       Vec3 *vt1 = &texVerts[f->vt[1]];
       Vec3 *vt2 = &texVerts[f->vt[2]];
-      float x0 = (v0->x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f;
-      float y0 = (v0->y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f;
-      float x1 = (v1->x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f;
-      float y1 = (v1->y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f;
-      float x2 = (v2->x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f;
-      float y2 = (v2->y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f;
 
-      Vec3 n = crossVec3(subVec3(*v2, *v0), subVec3(*v1, *v0));
+      float x0 = (v0.x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f;
+      float y0 = (v0.y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f;
+      float x1 = (v1.x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f;
+      float y1 = (v1.y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f;
+      float x2 = (v2.x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f;
+      float y2 = (v2.y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f;
+
+      Vec3 n = crossVec3(subVec3(v2, v0), subVec3(v1, v0));
       n = normalizeVec3(n);
       float intensity = dotVec3(n, lightDir);
       if (intensity > 0) {
-        drawTriangleBarycentric(x0, y0, v0->z, vt0->x, vt0->y,
-                                x1, y1, v1->z, vt1->x, vt1->y,
-                                x2, y2, v2->z, vt2->x, vt2->y,
+        drawTriangleBarycentric(x0, y0, v0.z, vt0->x, vt0->y,
+                                x1, y1, v1.z, vt1->x, vt1->y,
+                                x2, y2, v2.z, vt2->x, vt2->y,
                                 texture);
       }
     }
