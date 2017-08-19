@@ -612,8 +612,8 @@ bool buttonIsPressed(Button button) {
 
 Mat4 getLookAtMat(Vec3 eye, Vec3 center, Vec3 up) {
   Vec3 z = normalizeVec3(subVec3(eye, center));
-  Vec3 x = normalizeVec3(crossVec3(z, up));
-  Vec3 y = crossVec3(x, z);
+  Vec3 x = normalizeVec3(crossVec3(up, z));
+  Vec3 y = crossVec3(z, x);
   Mat4 mInv = makeMat4(x.x, x.y, x.z, 0,
                        y.x, y.y, y.z, 0,
                        z.x, z.y, z.z, 0,
@@ -692,7 +692,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
   int mousePosX = 0;
   int mousePosY = 0;
 
-  Vec3 cameraPos = makeVec3(3.0f, 3.0f, 4.0f);
+  Vec3 cameraPos = makeVec3(30.0f, 30.0f, 40.0f);
   Vec3 cameraTarget = makeVec3(0, 0, 0);
   bool isCameraEnabled = true;
   //
