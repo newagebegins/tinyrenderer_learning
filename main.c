@@ -874,7 +874,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
     }
 
     Mat4 transformMat = mulMat4(viewportMat, mulMat4(projectionMatrix, viewMat));
-    Mat4 normalTransformMat = invertMat4(transposeMat4(transformMat));
+    /* Mat4 normalTransformMat = invertMat4(transposeMat4(transformMat)); */
 
     for (int i = 0; i < NUM_FACES; ++i) {
       Face *f = &faces[i];
@@ -910,17 +910,17 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       Vec3 n1 = normals[f->vn[1]];
       Vec3 n2 = normals[f->vn[2]];
 
-      Vec4 n04 = mulMatVec4(normalTransformMat, makeVec4(n0.x, n0.y, n0.z, 0.0f));
-      Vec4 n14 = mulMatVec4(normalTransformMat, makeVec4(n1.x, n1.y, n1.z, 0.0f));
-      Vec4 n24 = mulMatVec4(normalTransformMat, makeVec4(n2.x, n2.y, n2.z, 0.0f));
+      /* Vec4 n04 = mulMatVec4(normalTransformMat, makeVec4(n0.x, n0.y, n0.z, 0.0f)); */
+      /* Vec4 n14 = mulMatVec4(normalTransformMat, makeVec4(n1.x, n1.y, n1.z, 0.0f)); */
+      /* Vec4 n24 = mulMatVec4(normalTransformMat, makeVec4(n2.x, n2.y, n2.z, 0.0f)); */
 
-      n0 = makeVec3(n04.x, n04.y, n04.z);
-      n1 = makeVec3(n14.x, n14.y, n14.z);
-      n2 = makeVec3(n24.x, n24.y, n24.z);
+      /* n0 = makeVec3(n04.x, n04.y, n04.z); */
+      /* n1 = makeVec3(n14.x, n14.y, n14.z); */
+      /* n2 = makeVec3(n24.x, n24.y, n24.z); */
 
-      n0 = normalizeVec3(n0);
-      n1 = normalizeVec3(n1);
-      n2 = normalizeVec3(n2);
+      /* n0 = normalizeVec3(n0); */
+      /* n1 = normalizeVec3(n1); */
+      /* n2 = normalizeVec3(n2); */
 
       float in0 = -dotVec3(n0, lightDir);
       float in1 = -dotVec3(n1, lightDir);
