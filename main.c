@@ -218,12 +218,90 @@ Mat4 makeMat4(float d00, float d01, float d02, float d03,
   return m;
 }
 
+Mat4 getIdentityMat4() {
+  return makeMat4(1,0,0,0,
+                  0,1,0,0,
+                  0,0,1,0,
+                  0,0,0,1);
+}
+
+Mat4 mulMat4(Mat4 m, Mat4 n) {
+  Mat4 r;
+
+  r.d[0][0] = m.d[0][0]*n.d[0][0] + m.d[0][1]*n.d[1][0] + m.d[0][2]*n.d[2][0] + m.d[0][3]*n.d[3][0];
+  r.d[0][1] = m.d[0][0]*n.d[0][1] + m.d[0][1]*n.d[1][1] + m.d[0][2]*n.d[2][1] + m.d[0][3]*n.d[3][1];
+  r.d[0][2] = m.d[0][0]*n.d[0][2] + m.d[0][1]*n.d[1][2] + m.d[0][2]*n.d[2][2] + m.d[0][3]*n.d[3][2];
+  r.d[0][3] = m.d[0][0]*n.d[0][3] + m.d[0][1]*n.d[1][3] + m.d[0][2]*n.d[2][3] + m.d[0][3]*n.d[3][3];
+
+  r.d[1][0] = m.d[1][0]*n.d[0][0] + m.d[1][1]*n.d[1][0] + m.d[1][2]*n.d[2][0] + m.d[1][3]*n.d[3][0];
+  r.d[1][1] = m.d[1][0]*n.d[0][1] + m.d[1][1]*n.d[1][1] + m.d[1][2]*n.d[2][1] + m.d[1][3]*n.d[3][1];
+  r.d[1][2] = m.d[1][0]*n.d[0][2] + m.d[1][1]*n.d[1][2] + m.d[1][2]*n.d[2][2] + m.d[1][3]*n.d[3][2];
+  r.d[1][3] = m.d[1][0]*n.d[0][3] + m.d[1][1]*n.d[1][3] + m.d[1][2]*n.d[2][3] + m.d[1][3]*n.d[3][3];
+
+  r.d[2][0] = m.d[2][0]*n.d[0][0] + m.d[2][1]*n.d[1][0] + m.d[2][2]*n.d[2][0] + m.d[2][3]*n.d[3][0];
+  r.d[2][1] = m.d[2][0]*n.d[0][1] + m.d[2][1]*n.d[1][1] + m.d[2][2]*n.d[2][1] + m.d[2][3]*n.d[3][1];
+  r.d[2][2] = m.d[2][0]*n.d[0][2] + m.d[2][1]*n.d[1][2] + m.d[2][2]*n.d[2][2] + m.d[2][3]*n.d[3][2];
+  r.d[2][3] = m.d[2][0]*n.d[0][3] + m.d[2][1]*n.d[1][3] + m.d[2][2]*n.d[2][3] + m.d[2][3]*n.d[3][3];
+
+  r.d[3][0] = m.d[3][0]*n.d[0][0] + m.d[3][1]*n.d[1][0] + m.d[3][2]*n.d[2][0] + m.d[3][3]*n.d[3][0];
+  r.d[3][1] = m.d[3][0]*n.d[0][1] + m.d[3][1]*n.d[1][1] + m.d[3][2]*n.d[2][1] + m.d[3][3]*n.d[3][1];
+  r.d[3][2] = m.d[3][0]*n.d[0][2] + m.d[3][1]*n.d[1][2] + m.d[3][2]*n.d[2][2] + m.d[3][3]*n.d[3][2];
+  r.d[3][3] = m.d[3][0]*n.d[0][3] + m.d[3][1]*n.d[1][3] + m.d[3][2]*n.d[2][3] + m.d[3][3]*n.d[3][3];
+
+  return r;
+}
+
 Vec4 mulMatVec4(Mat4 m, Vec4 v) {
   Vec4 r;
   r.x = m.d[0][0]*v.x + m.d[0][1]*v.y + m.d[0][2]*v.z + m.d[0][3]*v.w;
   r.y = m.d[1][0]*v.x + m.d[1][1]*v.y + m.d[1][2]*v.z + m.d[1][3]*v.w;
   r.z = m.d[2][0]*v.x + m.d[2][1]*v.y + m.d[2][2]*v.z + m.d[2][3]*v.w;
   r.w = m.d[3][0]*v.x + m.d[3][1]*v.y + m.d[3][2]*v.z + m.d[3][3]*v.w;
+  return r;
+}
+
+float determinantMat4(Mat4 m) {
+  float det =
+    m.d[0][3]*m.d[1][2]*m.d[2][1]*m.d[3][0] - m.d[0][2]*m.d[1][3]*m.d[2][1]*m.d[3][0] - m.d[0][3]*m.d[1][1]*m.d[2][2]*m.d[3][0] + m.d[0][1]*m.d[1][3]*m.d[2][2]*m.d[3][0]+
+    m.d[0][2]*m.d[1][1]*m.d[2][3]*m.d[3][0] - m.d[0][1]*m.d[1][2]*m.d[2][3]*m.d[3][0] - m.d[0][3]*m.d[1][2]*m.d[2][0]*m.d[3][1] + m.d[0][2]*m.d[1][3]*m.d[2][0]*m.d[3][1]+
+    m.d[0][3]*m.d[1][0]*m.d[2][2]*m.d[3][1] - m.d[0][0]*m.d[1][3]*m.d[2][2]*m.d[3][1] - m.d[0][2]*m.d[1][0]*m.d[2][3]*m.d[3][1] + m.d[0][0]*m.d[1][2]*m.d[2][3]*m.d[3][1]+
+    m.d[0][3]*m.d[1][1]*m.d[2][0]*m.d[3][2] - m.d[0][1]*m.d[1][3]*m.d[2][0]*m.d[3][2] - m.d[0][3]*m.d[1][0]*m.d[2][1]*m.d[3][2] + m.d[0][0]*m.d[1][3]*m.d[2][1]*m.d[3][2]+
+    m.d[0][1]*m.d[1][0]*m.d[2][3]*m.d[3][2] - m.d[0][0]*m.d[1][1]*m.d[2][3]*m.d[3][2] - m.d[0][2]*m.d[1][1]*m.d[2][0]*m.d[3][3] + m.d[0][1]*m.d[1][2]*m.d[2][0]*m.d[3][3]+
+    m.d[0][2]*m.d[1][0]*m.d[2][1]*m.d[3][3] - m.d[0][0]*m.d[1][2]*m.d[2][1]*m.d[3][3] - m.d[0][1]*m.d[1][0]*m.d[2][2]*m.d[3][3] + m.d[0][0]*m.d[1][1]*m.d[2][2]*m.d[3][3];
+  return det;
+}
+
+Mat4 invertMat4(Mat4 m) {
+  Mat4 r;
+  float det = determinantMat4(m);
+  assert(fabs(det) > 0.001f);
+  float invDet = 1.0f / det;
+  r.d[0][0] = invDet * (m.d[1][2]*m.d[2][3]*m.d[3][1] - m.d[1][3]*m.d[2][2]*m.d[3][1] + m.d[1][3]*m.d[2][1]*m.d[3][2] - m.d[1][1]*m.d[2][3]*m.d[3][2] - m.d[1][2]*m.d[2][1]*m.d[3][3] + m.d[1][1]*m.d[2][2]*m.d[3][3]);
+  r.d[0][1] = invDet * (m.d[0][3]*m.d[2][2]*m.d[3][1] - m.d[0][2]*m.d[2][3]*m.d[3][1] - m.d[0][3]*m.d[2][1]*m.d[3][2] + m.d[0][1]*m.d[2][3]*m.d[3][2] + m.d[0][2]*m.d[2][1]*m.d[3][3] - m.d[0][1]*m.d[2][2]*m.d[3][3]);
+  r.d[0][2] = invDet * (m.d[0][2]*m.d[1][3]*m.d[3][1] - m.d[0][3]*m.d[1][2]*m.d[3][1] + m.d[0][3]*m.d[1][1]*m.d[3][2] - m.d[0][1]*m.d[1][3]*m.d[3][2] - m.d[0][2]*m.d[1][1]*m.d[3][3] + m.d[0][1]*m.d[1][2]*m.d[3][3]);
+  r.d[0][3] = invDet * (m.d[0][3]*m.d[1][2]*m.d[2][1] - m.d[0][2]*m.d[1][3]*m.d[2][1] - m.d[0][3]*m.d[1][1]*m.d[2][2] + m.d[0][1]*m.d[1][3]*m.d[2][2] + m.d[0][2]*m.d[1][1]*m.d[2][3] - m.d[0][1]*m.d[1][2]*m.d[2][3]);
+  r.d[1][0] = invDet * (m.d[1][3]*m.d[2][2]*m.d[3][0] - m.d[1][2]*m.d[2][3]*m.d[3][0] - m.d[1][3]*m.d[2][0]*m.d[3][2] + m.d[1][0]*m.d[2][3]*m.d[3][2] + m.d[1][2]*m.d[2][0]*m.d[3][3] - m.d[1][0]*m.d[2][2]*m.d[3][3]);
+  r.d[1][1] = invDet * (m.d[0][2]*m.d[2][3]*m.d[3][0] - m.d[0][3]*m.d[2][2]*m.d[3][0] + m.d[0][3]*m.d[2][0]*m.d[3][2] - m.d[0][0]*m.d[2][3]*m.d[3][2] - m.d[0][2]*m.d[2][0]*m.d[3][3] + m.d[0][0]*m.d[2][2]*m.d[3][3]);
+  r.d[1][2] = invDet * (m.d[0][3]*m.d[1][2]*m.d[3][0] - m.d[0][2]*m.d[1][3]*m.d[3][0] - m.d[0][3]*m.d[1][0]*m.d[3][2] + m.d[0][0]*m.d[1][3]*m.d[3][2] + m.d[0][2]*m.d[1][0]*m.d[3][3] - m.d[0][0]*m.d[1][2]*m.d[3][3]);
+  r.d[1][3] = invDet * (m.d[0][2]*m.d[1][3]*m.d[2][0] - m.d[0][3]*m.d[1][2]*m.d[2][0] + m.d[0][3]*m.d[1][0]*m.d[2][2] - m.d[0][0]*m.d[1][3]*m.d[2][2] - m.d[0][2]*m.d[1][0]*m.d[2][3] + m.d[0][0]*m.d[1][2]*m.d[2][3]);
+  r.d[2][0] = invDet * (m.d[1][1]*m.d[2][3]*m.d[3][0] - m.d[1][3]*m.d[2][1]*m.d[3][0] + m.d[1][3]*m.d[2][0]*m.d[3][1] - m.d[1][0]*m.d[2][3]*m.d[3][1] - m.d[1][1]*m.d[2][0]*m.d[3][3] + m.d[1][0]*m.d[2][1]*m.d[3][3]);
+  r.d[2][1] = invDet * (m.d[0][3]*m.d[2][1]*m.d[3][0] - m.d[0][1]*m.d[2][3]*m.d[3][0] - m.d[0][3]*m.d[2][0]*m.d[3][1] + m.d[0][0]*m.d[2][3]*m.d[3][1] + m.d[0][1]*m.d[2][0]*m.d[3][3] - m.d[0][0]*m.d[2][1]*m.d[3][3]);
+  r.d[2][2] = invDet * (m.d[0][1]*m.d[1][3]*m.d[3][0] - m.d[0][3]*m.d[1][1]*m.d[3][0] + m.d[0][3]*m.d[1][0]*m.d[3][1] - m.d[0][0]*m.d[1][3]*m.d[3][1] - m.d[0][1]*m.d[1][0]*m.d[3][3] + m.d[0][0]*m.d[1][1]*m.d[3][3]);
+  r.d[2][3] = invDet * (m.d[0][3]*m.d[1][1]*m.d[2][0] - m.d[0][1]*m.d[1][3]*m.d[2][0] - m.d[0][3]*m.d[1][0]*m.d[2][1] + m.d[0][0]*m.d[1][3]*m.d[2][1] + m.d[0][1]*m.d[1][0]*m.d[2][3] - m.d[0][0]*m.d[1][1]*m.d[2][3]);
+  r.d[3][0] = invDet * (m.d[1][2]*m.d[2][1]*m.d[3][0] - m.d[1][1]*m.d[2][2]*m.d[3][0] - m.d[1][2]*m.d[2][0]*m.d[3][1] + m.d[1][0]*m.d[2][2]*m.d[3][1] + m.d[1][1]*m.d[2][0]*m.d[3][2] - m.d[1][0]*m.d[2][1]*m.d[3][2]);
+  r.d[3][1] = invDet * (m.d[0][1]*m.d[2][2]*m.d[3][0] - m.d[0][2]*m.d[2][1]*m.d[3][0] + m.d[0][2]*m.d[2][0]*m.d[3][1] - m.d[0][0]*m.d[2][2]*m.d[3][1] - m.d[0][1]*m.d[2][0]*m.d[3][2] + m.d[0][0]*m.d[2][1]*m.d[3][2]);
+  r.d[3][2] = invDet * (m.d[0][2]*m.d[1][1]*m.d[3][0] - m.d[0][1]*m.d[1][2]*m.d[3][0] - m.d[0][2]*m.d[1][0]*m.d[3][1] + m.d[0][0]*m.d[1][2]*m.d[3][1] + m.d[0][1]*m.d[1][0]*m.d[3][2] - m.d[0][0]*m.d[1][1]*m.d[3][2]);
+  r.d[3][3] = invDet * (m.d[0][1]*m.d[1][2]*m.d[2][0] - m.d[0][2]*m.d[1][1]*m.d[2][0] + m.d[0][2]*m.d[1][0]*m.d[2][1] - m.d[0][0]*m.d[1][2]*m.d[2][1] - m.d[0][1]*m.d[1][0]*m.d[2][2] + m.d[0][0]*m.d[1][1]*m.d[2][2]);
+  return r;
+}
+
+Mat4 transposeMat4(Mat4 m) {
+  Mat4 r;
+  for (int i = 0; i < 4; ++i) {
+    for (int j = 0; j < 4; ++j) {
+      r.d[i][j] = m.d[j][i];
+    }
+  }
   return r;
 }
 
@@ -523,13 +601,28 @@ void readObjFile() {
   free(fileContents);
 }
 
-typedef enum {BUTTON_EXIT, BUTTON_ACTION, BUTTON_F1, BUTTON_F2, BUTTON_F3, BUTTON_F4, BUTTON_F5, BUTTON_COUNT} Button;
+typedef enum {BUTTON_EXIT, BUTTON_ACTION, BUTTON_F1, BUTTON_F2, BUTTON_F3, BUTTON_F4, BUTTON_F5, BUTTON_F6, BUTTON_COUNT} Button;
 
 bool buttonIsDown[BUTTON_COUNT];
 bool buttonWasDown[BUTTON_COUNT];
 
 bool buttonIsPressed(Button button) {
   return buttonIsDown[button] && !buttonWasDown[button];
+}
+
+Mat4 getLookAtMat(Vec3 eye, Vec3 center, Vec3 up) {
+  Vec3 z = normalizeVec3(subVec3(eye, center));
+  Vec3 x = normalizeVec3(crossVec3(z, up));
+  Vec3 y = crossVec3(x, z);
+  Mat4 mInv = makeMat4(x.x, x.y, x.z, 0,
+                       y.x, y.y, y.z, 0,
+                       z.x, z.y, z.z, 0,
+                         0,   0,   0, 1);
+  Mat4 tr = makeMat4(1, 0, 0, -center.x,
+                     0, 1, 0, -center.y,
+                     0, 0, 1, -center.z,
+                     0, 0, 0,         1);
+  return mulMat4(mInv, tr);
 }
 
 LRESULT CALLBACK wndProc(HWND wnd, UINT msg, WPARAM wparam, LPARAM lparam) {
@@ -599,7 +692,9 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
   int mousePosX = 0;
   int mousePosY = 0;
 
-  float cameraZ = 4.0f;
+  Vec3 cameraPos = makeVec3(3.0f, 3.0f, 4.0f);
+  Vec3 cameraTarget = makeVec3(0, 0, 0);
+  bool isCameraEnabled = true;
   //
 
   readObjFile();
@@ -652,6 +747,9 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
                 buttonIsDown[BUTTON_F4] = isDown;
               case VK_F5:
                 buttonIsDown[BUTTON_F5] = isDown;
+                break;
+              case VK_F6:
+                buttonIsDown[BUTTON_F6] = isDown;
                 break;
             }
           }
@@ -743,18 +841,27 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
     Vec3 lightDir = makeVec3(0,0,-1);
     float cameraStep = 0.5f;
     if (buttonIsDown[BUTTON_F3]) {
-      cameraZ += cameraStep;
-      debugPrint("cameraZ: %f\n", cameraZ);
+      cameraPos.z += cameraStep;
+      debugPrint("cameraPos.z: %f\n", cameraPos.z);
     }
     if (buttonIsDown[BUTTON_F2]) {
-      cameraZ -= cameraStep;
-      debugPrint("cameraZ: %f\n", cameraZ);
+      cameraPos.z -= cameraStep;
+      debugPrint("cameraPos.z: %f\n", cameraPos.z);
     }
-    float r = -1.0f/cameraZ;
+    if (buttonIsPressed(BUTTON_F6)) {
+      isCameraEnabled = !isCameraEnabled;
+      debugPrint("isCameraEnabled: %d", isCameraEnabled);
+    }
+    float cameraZ = lengthVec3(subVec3(cameraPos, cameraTarget));
+    float r = perspectiveEnabled ? -1.0f/cameraZ : 0.0f;
     Mat4 projectionMatrix = makeMat4(1,0,0,0,
                                      0,1,0,0,
                                      0,0,1,0,
                                      0,0,r,1);
+    Mat4 viewMat = isCameraEnabled ? getLookAtMat(cameraPos, cameraTarget, makeVec3(0, 1, 0)) : getIdentityMat4();
+    Mat4 transformMat = mulMat4(projectionMatrix, viewMat);
+    Mat4 normalTransformMat = invertMat4(transposeMat4(transformMat));
+
     for (int i = 0; i < NUM_FACES; ++i) {
       Face *f = &faces[i];
 
@@ -766,27 +873,19 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       Vec4 v14 = makeVec4(v1orig.x, v1orig.y, v1orig.z, 1.0f);
       Vec4 v24 = makeVec4(v2orig.x, v2orig.y, v2orig.z, 1.0f);
 
-      Vec4 v0h = mulMatVec4(projectionMatrix, v04);
-      Vec4 v1h = mulMatVec4(projectionMatrix, v14);
-      Vec4 v2h = mulMatVec4(projectionMatrix, v24);
+      Vec4 v0h = mulMatVec4(transformMat, v04);
+      Vec4 v1h = mulMatVec4(transformMat, v14);
+      Vec4 v2h = mulMatVec4(transformMat, v24);
 
-      Vec3 v0;
-      Vec3 v1;
-      Vec3 v2;
-      if (perspectiveEnabled) {
-        v0 = makeVec3(v0h.x/v0h.w, v0h.y/v0h.w, v0h.z/v0h.w);
-        v1 = makeVec3(v1h.x/v1h.w, v1h.y/v1h.w, v1h.z/v1h.w);
-        v2 = makeVec3(v2h.x/v2h.w, v2h.y/v2h.w, v2h.z/v2h.w);
-      } else {
-        v0 = v0orig;
-        v1 = v1orig;
-        v2 = v2orig;
-      }
+      Vec3 v0 = makeVec3(v0h.x/v0h.w, v0h.y/v0h.w, v0h.z/v0h.w);
+      Vec3 v1 = makeVec3(v1h.x/v1h.w, v1h.y/v1h.w, v1h.z/v1h.w);
+      Vec3 v2 = makeVec3(v2h.x/v2h.w, v2h.y/v2h.w, v2h.z/v2h.w);
 
       Vec3 *vt0 = &texVerts[f->vt[0]];
       Vec3 *vt1 = &texVerts[f->vt[1]];
       Vec3 *vt2 = &texVerts[f->vt[2]];
 
+      // TODO: viewport matrix
       float x0 = (v0.x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f;
       float y0 = (v0.y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f;
       float x1 = (v1.x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f;
@@ -794,12 +893,21 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       float x2 = (v2.x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f;
       float y2 = (v2.y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f;
 
-      Vec3 n = crossVec3(subVec3(v1, v0), subVec3(v2, v0));
-      n = normalizeVec3(n);
-      float intensity = -dotVec3(n, lightDir);
       Vec3 n0 = normals[f->vn[0]];
       Vec3 n1 = normals[f->vn[1]];
       Vec3 n2 = normals[f->vn[2]];
+
+      Vec4 n04 = mulMatVec4(normalTransformMat, makeVec4(n0.x, n0.y, n0.z, 0.0f));
+      Vec4 n14 = mulMatVec4(normalTransformMat, makeVec4(n1.x, n1.y, n1.z, 0.0f));
+      Vec4 n24 = mulMatVec4(normalTransformMat, makeVec4(n2.x, n2.y, n2.z, 0.0f));
+
+      n0 = makeVec3(n04.x, n04.y, n04.z);
+      n1 = makeVec3(n14.x, n14.y, n14.z);
+      n2 = makeVec3(n24.x, n24.y, n24.z);
+
+      n0 = normalizeVec3(n0);
+      n1 = normalizeVec3(n1);
+      n2 = normalizeVec3(n2);
 
       float in0 = -dotVec3(n0, lightDir);
       float in1 = -dotVec3(n1, lightDir);
@@ -810,13 +918,12 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       assert(in0 >= 0.0f && in0 <= 1.0f);
       assert(in1 >= 0.0f && in1 <= 1.0f);
       assert(in2 >= 0.0f && in2 <= 1.0f);
-      if (intensity > 0) {
-        drawTriangleBarycentric(x0, y0, v0.z, vt0->x, vt0->y,
-                                x1, y1, v1.z, vt1->x, vt1->y,
-                                x2, y2, v2.z, vt2->x, vt2->y,
-                                in0, in1, in2,
-                                texture);
-      }
+
+      drawTriangleBarycentric(x0, y0, v0.z, vt0->x, vt0->y,
+                              x1, y1, v1.z, vt1->x, vt1->y,
+                              x2, y2, v2.z, vt2->x, vt2->y,
+                              in0, in1, in2,
+                              texture);
     }
 #endif
 
