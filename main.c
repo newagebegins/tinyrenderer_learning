@@ -601,7 +601,7 @@ void readObjFile() {
   free(fileContents);
 }
 
-typedef enum {BUTTON_EXIT, BUTTON_ACTION, BUTTON_F1, BUTTON_F2, BUTTON_F3, BUTTON_F4, BUTTON_F5, BUTTON_F6, BUTTON_COUNT} Button;
+typedef enum {BUTTON_EXIT, BUTTON_ACTION, BUTTON_F1, BUTTON_F2, BUTTON_F3, BUTTON_F4, BUTTON_F5, BUTTON_F6, BUTTON_F7, BUTTON_COUNT} Button;
 
 bool buttonIsDown[BUTTON_COUNT];
 bool buttonWasDown[BUTTON_COUNT];
@@ -750,6 +750,8 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
                 break;
               case VK_F6:
                 buttonIsDown[BUTTON_F6] = isDown;
+              case VK_F7:
+                buttonIsDown[BUTTON_F7] = isDown;
                 break;
             }
           }
@@ -850,7 +852,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
     }
     if (buttonIsPressed(BUTTON_F6)) {
       isCameraEnabled = !isCameraEnabled;
-      debugPrint("isCameraEnabled: %d", isCameraEnabled);
+      debugPrint("isCameraEnabled: %d\n", isCameraEnabled);
     }
     float cameraZ = lengthVec3(subVec3(cameraPos, cameraTarget));
     float r = perspectiveEnabled ? -1.0f/cameraZ : 0.0f;
@@ -859,8 +861,6 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
                                      0,0,1,0,
                                      0,0,r,1);
     Mat4 viewMat = isCameraEnabled ? getLookAtMat(cameraPos, cameraTarget, makeVec3(0, 1, 0)) : getIdentityMat4();
-    Mat4 transformMat = mulMat4(projectionMatrix, viewMat);
-    Mat4 normalTransformMat = invertMat4(transposeMat4(transformMat));
 
     Mat4 viewportMat;
     {
@@ -872,6 +872,9 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
                                   0,      0, d/2.0f, d/2.0f,
                                   0,      0,      0,      1);
     }
+
+    Mat4 transformMat = mulMat4(viewportMat, mulMat4(projectionMatrix, viewMat));
+    Mat4 normalTransformMat = invertMat4(transposeMat4(transformMat));
 
     for (int i = 0; i < NUM_FACES; ++i) {
       Face *f = &faces[i];
@@ -891,10 +894,6 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       v0h = makeVec4(v0h.x/v0h.w, v0h.y/v0h.w, v0h.z/v0h.w, v0h.w/v0h.w);
       v1h = makeVec4(v1h.x/v1h.w, v1h.y/v1h.w, v1h.z/v1h.w, v1h.w/v1h.w);
       v2h = makeVec4(v2h.x/v2h.w, v2h.y/v2h.w, v2h.z/v2h.w, v2h.w/v2h.w);
-
-      v0h = mulMatVec4(viewportMat, v0h);
-      v1h = mulMatVec4(viewportMat, v1h);
-      v2h = mulMatVec4(viewportMat, v2h);
 
       Vec3 *vt0 = &texVerts[f->vt[0]];
       Vec3 *vt1 = &texVerts[f->vt[1]];
