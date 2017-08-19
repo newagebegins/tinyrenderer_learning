@@ -862,6 +862,17 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
     Mat4 transformMat = mulMat4(projectionMatrix, viewMat);
     Mat4 normalTransformMat = invertMat4(transposeMat4(transformMat));
 
+    Mat4 viewportMat;
+    {
+      float w = BACKBUFFER_WIDTH-1;
+      float h = BACKBUFFER_HEIGHT-1;
+      float d = 255.0f; //map z from [-1,1] to [0,255]
+      viewportMat = makeMat4(w/2.0f,      0,      0, w/2.0f,
+                                  0, h/2.0f,      0, h/2.0f,
+                                  0,      0, d/2.0f, d/2.0f,
+                                  0,      0,      0,      1);
+    }
+
     for (int i = 0; i < NUM_FACES; ++i) {
       Face *f = &faces[i];
 
@@ -877,21 +888,24 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       Vec4 v1h = mulMatVec4(transformMat, v14);
       Vec4 v2h = mulMatVec4(transformMat, v24);
 
-      Vec3 v0 = makeVec3(v0h.x/v0h.w, v0h.y/v0h.w, v0h.z/v0h.w);
-      Vec3 v1 = makeVec3(v1h.x/v1h.w, v1h.y/v1h.w, v1h.z/v1h.w);
-      Vec3 v2 = makeVec3(v2h.x/v2h.w, v2h.y/v2h.w, v2h.z/v2h.w);
+      v0h = makeVec4(v0h.x/v0h.w, v0h.y/v0h.w, v0h.z/v0h.w, v0h.w/v0h.w);
+      v1h = makeVec4(v1h.x/v1h.w, v1h.y/v1h.w, v1h.z/v1h.w, v1h.w/v1h.w);
+      v2h = makeVec4(v2h.x/v2h.w, v2h.y/v2h.w, v2h.z/v2h.w, v2h.w/v2h.w);
+
+      v0h = mulMatVec4(viewportMat, v0h);
+      v1h = mulMatVec4(viewportMat, v1h);
+      v2h = mulMatVec4(viewportMat, v2h);
 
       Vec3 *vt0 = &texVerts[f->vt[0]];
       Vec3 *vt1 = &texVerts[f->vt[1]];
       Vec3 *vt2 = &texVerts[f->vt[2]];
 
-      // TODO: viewport matrix
-      float x0 = (v0.x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f;
-      float y0 = (v0.y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f;
-      float x1 = (v1.x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f;
-      float y1 = (v1.y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f;
-      float x2 = (v2.x + 1.0f) * (BACKBUFFER_WIDTH-1) / 2.0f;
-      float y2 = (v2.y + 1.0f) * (BACKBUFFER_HEIGHT-1) / 2.0f;
+      float x0 = v0h.x;
+      float y0 = v0h.y;
+      float x1 = v1h.x;
+      float y1 = v1h.y;
+      float x2 = v2h.x;
+      float y2 = v2h.y;
 
       Vec3 n0 = normals[f->vn[0]];
       Vec3 n1 = normals[f->vn[1]];
@@ -919,9 +933,9 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       assert(in1 >= 0.0f && in1 <= 1.0f);
       assert(in2 >= 0.0f && in2 <= 1.0f);
 
-      drawTriangleBarycentric(x0, y0, v0.z, vt0->x, vt0->y,
-                              x1, y1, v1.z, vt1->x, vt1->y,
-                              x2, y2, v2.z, vt2->x, vt2->y,
+      drawTriangleBarycentric(x0, y0, v0h.z, vt0->x, vt0->y,
+                              x1, y1, v1h.z, vt1->x, vt1->y,
+                              x2, y2, v2h.z, vt2->x, vt2->y,
                               in0, in1, in2,
                               texture);
     }
