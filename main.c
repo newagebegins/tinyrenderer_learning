@@ -45,102 +45,6 @@ void debugPrint(char *format, ...) {
 #define RED   0xFFFF0000
 #define GREEN 0xFF00FF00
 
-uint32_t *backbuffer;
-
-void setPixel(int x, int y, uint32_t color) {
-  /* assert(x >= 0 && x < BACKBUFFER_WIDTH); */
-  /* assert(y >= 0 && y < BACKBUFFER_HEIGHT); */
-
-  if (x >= 0 && x < BACKBUFFER_WIDTH && y >= 0 && y < BACKBUFFER_HEIGHT)
-    backbuffer[y*BACKBUFFER_WIDTH + x] = color;
-}
-
-void drawFilledRect(int left, int top, int right, int bottom, uint32_t color) {
-  for (int y = top; y <= bottom; ++y) {
-    for (int x = left; x <= right; ++x) {
-      setPixel(x, y, color);
-    }
-  }
-}
-
-void drawLine(int x1, int y1, int x2, int y2, uint32_t color) {
-  if (x1 == x2 && y1 == y2) {
-    setPixel(x1, y1, color);
-    return;
-  }
-
-  int xStart, xEnd, yStart, yEnd;
-  int dx = x2 - x1;
-  int dy = y2 - y1;
-
-  if (abs(dx) > abs(dy)) {
-    float m = (float)dy / (float)dx;
-    if (x1 < x2) {
-      xStart = x1;
-      yStart = y1;
-      xEnd = x2;
-      yEnd = y2;
-    } else {
-      xStart = x2;
-      yStart = y2;
-      xEnd = x1;
-      yEnd = y1;
-    }
-    for (int x = xStart; x <= xEnd; ++x) {
-      int y = (int)(m * (x - xStart) + yStart);
-      setPixel(x, y, color);
-    }
-  } else {
-    float m = (float)dx / (float)dy;
-    if (y1 < y2) {
-      xStart = x1;
-      yStart = y1;
-      xEnd = x2;
-      yEnd = y2;
-    } else {
-      xStart = x2;
-      yStart = y2;
-      xEnd = x1;
-      yEnd = y1;
-    }
-    for (int y = yStart; y <= yEnd; ++y) {
-      int x = (int)(m * (y - yStart) + xStart);
-      setPixel(x, y, color);
-    }
-  }
-}
-
-#define SWAP(x,y) {int t=x; x=y; y=t;}
-
-void drawTriangleLineSweep(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color) {
-  if (y2 < y1) {SWAP(y2, y1); SWAP(x2, x1);}
-  if (y1 < y0) {SWAP(y1, y0); SWAP(x1, x0);}
-  if (y2 < y1) {SWAP(y2, y1); SWAP(x2, x1);}
-  assert(y0 <= y1 && y1 <= y2);
-
-#if 0
-  drawLine(x0, y0, x1, y1, color);
-  drawLine(x1, y1, x2, y2, color);
-  drawLine(x2, y2, x0, y0, color);
-#endif
-
-  for (int y = y0; y <= y1; ++y) {
-    float tA = (float)(y - y0) / (y1 - y0);
-    int xA = (int)((1.0f - tA)*x0 + tA*x1);
-    float tB = (float)(y - y0) / (y2 - y0);
-    int xB = (int)((1.0f - tB)*x0 + tB*x2);
-    drawLine(xA, y, xB, y, color);
-  }
-
-  for (int y = y1; y <= y2; ++y) {
-    float tA = (float)(y - y1) / (y2 - y1);
-    int xC = (int)((1.0f - tA)*x1 + tA*x2);
-    float tB = (float)(y - y0) / (y2 - y0);
-    int xD = (int)((1.0f - tB)*x0 + tB*x2);
-    drawLine(xC, y, xD, y, color);
-  }
-}
-
 typedef struct {
   float x, y, z;
 } Vec3;
@@ -305,6 +209,114 @@ Mat4 transposeMat4(Mat4 m) {
   return r;
 }
 
+u32 *backbuffer;
+
+u32 makeU32Color(Vec3 color) {
+  /* assert(color.x >= 0.0f && color.x <= 1.0f); */
+  /* assert(color.y >= 0.0f && color.y <= 1.0f); */
+  /* assert(color.z >= 0.0f && color.z <= 1.0f); */
+  //0xFFRRGGBB
+  u8 r = (u8)(color.x*0xFF);
+  u8 g = (u8)(color.y*0xFF);
+  u8 b = (u8)(color.z*0xFF);
+  uint32_t result = (0xFF << 8*3) | (r << 8*2) | (g << 8*1) | (b << 8*0);
+  return result;
+}
+
+void setPixel(int x, int y, Vec3 color) {
+  /* assert(x >= 0 && x < BACKBUFFER_WIDTH); */
+  /* assert(y >= 0 && y < BACKBUFFER_HEIGHT); */
+
+  if (x >= 0 && x < BACKBUFFER_WIDTH && y >= 0 && y < BACKBUFFER_HEIGHT)
+    backbuffer[y*BACKBUFFER_WIDTH + x] = makeU32Color(color);
+}
+
+void drawFilledRect(int left, int top, int right, int bottom, Vec3 color) {
+  for (int y = top; y <= bottom; ++y) {
+    for (int x = left; x <= right; ++x) {
+      setPixel(x, y, color);
+    }
+  }
+}
+
+void drawLine(int x1, int y1, int x2, int y2, Vec3 color) {
+  if (x1 == x2 && y1 == y2) {
+    setPixel(x1, y1, color);
+    return;
+  }
+
+  int xStart, xEnd, yStart, yEnd;
+  int dx = x2 - x1;
+  int dy = y2 - y1;
+
+  if (abs(dx) > abs(dy)) {
+    float m = (float)dy / (float)dx;
+    if (x1 < x2) {
+      xStart = x1;
+      yStart = y1;
+      xEnd = x2;
+      yEnd = y2;
+    } else {
+      xStart = x2;
+      yStart = y2;
+      xEnd = x1;
+      yEnd = y1;
+    }
+    for (int x = xStart; x <= xEnd; ++x) {
+      int y = (int)(m * (x - xStart) + yStart);
+      setPixel(x, y, color);
+    }
+  } else {
+    float m = (float)dx / (float)dy;
+    if (y1 < y2) {
+      xStart = x1;
+      yStart = y1;
+      xEnd = x2;
+      yEnd = y2;
+    } else {
+      xStart = x2;
+      yStart = y2;
+      xEnd = x1;
+      yEnd = y1;
+    }
+    for (int y = yStart; y <= yEnd; ++y) {
+      int x = (int)(m * (y - yStart) + xStart);
+      setPixel(x, y, color);
+    }
+  }
+}
+
+#define SWAP(x,y) {int t=x; x=y; y=t;}
+
+void drawTriangleLineSweep(int x0, int y0, int x1, int y1, int x2, int y2, Vec3 color) {
+  if (y2 < y1) {SWAP(y2, y1); SWAP(x2, x1);}
+  if (y1 < y0) {SWAP(y1, y0); SWAP(x1, x0);}
+  if (y2 < y1) {SWAP(y2, y1); SWAP(x2, x1);}
+  assert(y0 <= y1 && y1 <= y2);
+
+#if 0
+  drawLine(x0, y0, x1, y1, color);
+  drawLine(x1, y1, x2, y2, color);
+  drawLine(x2, y2, x0, y0, color);
+#endif
+
+  for (int y = y0; y <= y1; ++y) {
+    float tA = (float)(y - y0) / (y1 - y0);
+    int xA = (int)((1.0f - tA)*x0 + tA*x1);
+    float tB = (float)(y - y0) / (y2 - y0);
+    int xB = (int)((1.0f - tB)*x0 + tB*x2);
+    drawLine(xA, y, xB, y, color);
+  }
+
+  for (int y = y1; y <= y2; ++y) {
+    float tA = (float)(y - y1) / (y2 - y1);
+    int xC = (int)((1.0f - tA)*x1 + tA*x2);
+    float tB = (float)(y - y0) / (y2 - y0);
+    int xD = (int)((1.0f - tB)*x0 + tB*x2);
+    drawLine(xC, y, xD, y, color);
+  }
+}
+
 Vec3 getBarycentricCoords(Vec3 A, Vec3 B, Vec3 C, Vec3 P) {
   Vec3 AB = subVec3(B, A);
   Vec3 AC = subVec3(C, A);
@@ -317,25 +329,6 @@ Vec3 getBarycentricCoords(Vec3 A, Vec3 B, Vec3 C, Vec3 P) {
   float v = c.y / c.z;
   float w = 1.0f - u - v;
   return makeVec3(w, u, v);
-}
-
-uint32_t makeColor(int r, int g, int b) {
-  assert(r >= 0 && r <= 0xFF);
-  assert(g >= 0 && g <= 0xFF);
-  assert(b >= 0 && b <= 0xFF);
-  //0xFFRRGGBB
-  uint32_t color = (0xFF << 8*3) | (r << 8*2) | (g << 8*1) | (b << 8*0);
-  return color;
-}
-
-u32 scaleColor(u32 color, float scale) {
-  u8 r = (color >> 8*2) & 0xFF;
-  u8 g = (color >> 8*1) & 0xFF;
-  u8 b = (color >> 8*0) & 0xFF;
-  u8 newR = (u8)(r*scale);
-  u8 newG = (u8)(g*scale);
-  u8 newB = (u8)(b*scale);
-  return makeColor(newR, newG, newB);
 }
 
 #pragma pack(push, 1)
@@ -364,7 +357,7 @@ typedef struct {
 #pragma pack(pop)
 
 typedef struct {
-  u32 *pixels;
+  Vec3 *pixels;
   u32 width;
   u32 height;
 } Texture;
@@ -390,34 +383,40 @@ Texture readTGAFile(char *filePath) {
   TGAHeader *header = (TGAHeader *)fileContents;
   u8 *data = fileContents + sizeof(TGAHeader);
   assert(header->imageType == 10);
-  assert(header->imageSpec.bitsPerPixel == 24);
+  assert(header->imageSpec.bitsPerPixel == 24 || header->imageSpec.bitsPerPixel == 32);
   assert(header->numCharsInIdField == 0);
   assert(header->colorMapType == 0);
   assert(header->imageSpec.xOrigin == 0);
   assert(header->imageSpec.yOrigin == 0);
   result.width = header->imageSpec.width;
   result.height = header->imageSpec.height;
-  result.pixels = malloc(result.width * result.height * sizeof(u32));
-  u32 *tex = result.pixels;
-  u32 *texEnd = result.pixels + (result.width*result.height);
+  result.pixels = malloc(result.width * result.height * sizeof(*result.pixels));
+  Vec3 *tex = result.pixels;
+  Vec3 *texEnd = result.pixels + (result.width*result.height);
 
   while (tex < texEnd) {
     bool isRLE = *data & 0x80;
     u8 length = (*(data++) & 0x7F) + 1;
     if (isRLE) {
-      u8 b = *(data++);
-      u8 g = *(data++);
-      u8 r = *(data++);
-      u32 color = makeColor(r, g, b);
+      float b = *(data++);
+      float g = *(data++);
+      float r = *(data++);
+      if (header->imageSpec.bitsPerPixel == 32) {
+        data++;
+      }
+      Vec3 color = makeVec3(r/255.0f, g/255.0f, b/255.0f);
       for (int j = 0; j < length; ++j) {
         *(tex++) = color;
       }
     } else {
       for (int j = 0; j < length; ++j) {
-        u8 b = *(data++);
-        u8 g = *(data++);
-        u8 r = *(data++);
-        u32 color = makeColor(r, g, b);
+        float b = *(data++);
+        float g = *(data++);
+        float r = *(data++);
+        if (header->imageSpec.bitsPerPixel == 32) {
+          data++;
+        }
+        Vec3 color = makeVec3(r/255.0f, g/255.0f, b/255.0f);
         *(tex++) = color;
       }
     }
@@ -429,13 +428,13 @@ Texture readTGAFile(char *filePath) {
 
 float zBuffer[BACKBUFFER_WIDTH*BACKBUFFER_HEIGHT];
 bool isTextured = true;
-bool isGourad = true;
+bool normalMapEnabled = true;
+Vec3 lightDir;
 
 void drawTriangleBarycentric(float x0, float y0, float z0, float u0, float v0,
                              float x1, float y1, float z1, float u1, float v1,
                              float x2, float y2, float z2, float u2, float v2,
-                             float in0, float in1, float in2,
-                             Texture texture) {
+                             Texture texture, Texture normalMap) {
   float minX = x0;
   if (x1 < minX) minX = x1;
   if (x2 < minX) minX = x2;
@@ -479,10 +478,14 @@ void drawTriangleBarycentric(float x0, float y0, float z0, float u0, float v0,
         float v = v0*b.x + v1*b.y + v2*b.z;
         int tx = (int)(u*(texture.width-1));
         int ty = (int)(v*(texture.height-1));
-        u32 texColor = texture.pixels[tx + ty*texture.width];
+        Vec3 texColor = texture.pixels[tx + ty*texture.width];
 
-        // gourad shading
-        float intensity = in0*b.x + in1*b.y + in2*b.z;
+        assert(normalMap.width == texture.width);
+        assert(normalMap.height == texture.height);
+        Vec3 normal = normalMap.pixels[tx + ty*texture.width];
+        //normal = normalizeVec3(normal);
+
+        float intensity = -dotVec3(normal, lightDir);
 
 #if 0
         if (intensity > 0.75f) intensity = 1.0f;
@@ -491,17 +494,16 @@ void drawTriangleBarycentric(float x0, float y0, float z0, float u0, float v0,
         else if (intensity > 0) intensity = 0.25f;
 #endif
 
-        u32 color;
+        Vec3 color;
 
         if (isTextured) {
-          if (isGourad) {
-            color = scaleColor(texColor, intensity);
+          if (normalMapEnabled) {
+            color = scaleVec3(texColor, intensity);
           } else {
             color = texColor;
           }
         } else {
-          int g = (int)(intensity*255.0f);
-          color = makeColor(g,g,g);
+          color = makeVec3(intensity,intensity,intensity);
         }
         setPixel(x, y, color);
       }
@@ -632,6 +634,17 @@ Mat4 getLookAtMat(Vec3 eye, Vec3 center, Vec3 up) {
   return mulMat4(mInv, tr);
 }
 
+void drawTexture(Texture texture) {
+  for (u32 i = 0; i < texture.width*texture.height; ++i) {
+    f32 tx = (f32)(i % texture.width) / (texture.width-1);
+    f32 ty = (f32)(i / texture.width) / (texture.height-1);
+    u32 x = (u32)(tx*(BACKBUFFER_WIDTH-1));
+    u32 y = (u32)(ty*(BACKBUFFER_HEIGHT-1));
+    Vec3 color = texture.pixels[i];
+    setPixel(x, y, color);
+  }
+}
+
 LRESULT CALLBACK wndProc(HWND wnd, UINT msg, WPARAM wparam, LPARAM lparam) {
   switch (msg) {
     case WM_DESTROY:
@@ -699,18 +712,15 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
   int mousePosX = 0;
   int mousePosY = 0;
 
-  Vec3 cameraPos = makeVec3(3.0f, 1.0f, 5.0f);
+  Vec3 cameraPos = makeVec3(1.0f, 1.0f, 4.0f);
   Vec3 cameraTarget = makeVec3(0, 0, 0);
   bool isCameraEnabled = true;
   //
 
   readObjFile();
 
-#if 1
   Texture texture = readTGAFile("african_head_diffuse.tga");
-#else
-  Texture texture = readTGAFile("test.tga");
-#endif
+  Texture normalMap = readTGAFile("african_head_nm.tga");
 
   bool gameIsRunning = true;
 
@@ -795,9 +805,9 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       else debugPrint("texture off\n");
     }
     if (buttonIsPressed(BUTTON_F5)) {
-      isGourad = !isGourad;
-      if (isGourad) debugPrint("gourad on\n");
-      else debugPrint("gourad off\n");
+      normalMapEnabled = !normalMapEnabled;
+      if (normalMapEnabled) debugPrint("normal map on\n");
+      else debugPrint("normal map off\n");
     }
 
     {
@@ -809,7 +819,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       //debugPrint("%d,%d\n", mousePosX, mousePosY);
     }
 
-    drawFilledRect(0, 0, BACKBUFFER_WIDTH-1, BACKBUFFER_HEIGHT-1, makeColor(135, 181, 218));
+    drawFilledRect(0, 0, BACKBUFFER_WIDTH-1, BACKBUFFER_HEIGHT-1, makeVec3(135.0f/255.0f, 181.0f/255.0f, 218.0f/255.0f));
 
 #if 0
     drawLine(13, 20, 80, 40, WHITE);
@@ -849,8 +859,8 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
     }
 
 #if 1
-    Vec3 lightDir = makeVec3(0,0,-1);
     float cameraStep = 0.5f;
+    lightDir = normalizeVec3(makeVec3(-1,-1,-1));
     if (buttonIsDown[BUTTON_F3]) {
       cameraPos.z += cameraStep;
       debugPrint("cameraPos.z: %f\n", cameraPos.z);
@@ -915,10 +925,6 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       float x2 = v2h.x;
       float y2 = v2h.y;
 
-      Vec3 n0 = normals[f->vn[0]];
-      Vec3 n1 = normals[f->vn[1]];
-      Vec3 n2 = normals[f->vn[2]];
-
       /* Vec4 n04 = mulMatVec4(normalTransformMat, makeVec4(n0.x, n0.y, n0.z, 0.0f)); */
       /* Vec4 n14 = mulMatVec4(normalTransformMat, makeVec4(n1.x, n1.y, n1.z, 0.0f)); */
       /* Vec4 n24 = mulMatVec4(normalTransformMat, makeVec4(n2.x, n2.y, n2.z, 0.0f)); */
@@ -931,44 +937,18 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       /* n1 = normalizeVec3(n1); */
       /* n2 = normalizeVec3(n2); */
 
-      float in0 = -dotVec3(n0, lightDir);
-      float in1 = -dotVec3(n1, lightDir);
-      float in2 = -dotVec3(n2, lightDir);
-      if (in0 < 0) in0 = 0;
-      if (in1 < 0) in1 = 0;
-      if (in2 < 0) in2 = 0;
-      assert(in0 >= 0.0f && in0 <= 1.0f);
-      assert(in1 >= 0.0f && in1 <= 1.0f);
-      assert(in2 >= 0.0f && in2 <= 1.0f);
+      /* Vec4 lightDir4 = makeVec4(lightDir.x, lightDir.y, lightDir.z, 1.0f); */
+      /* lightDir4 = mulMatVec4(transformMat, lightDir4); */
+      /* Vec3 lightDirNew = makeVec3(lightDir4.x, lightDir4.y, lightDir4.z); */
 
       drawTriangleBarycentric(x0, y0, v0h.z, vt0->x, vt0->y,
                               x1, y1, v1h.z, vt1->x, vt1->y,
                               x2, y2, v2h.z, vt2->x, vt2->y,
-                              in0, in1, in2,
-                              texture);
+                              texture, normalMap);
     }
 #endif
 
-#if 0
-#if 0
-    for (u32 i = 0; i < TEX_SIZE; ++i) {
-      f32 tx = (f32)(i % TEX_WIDTH) / (TEX_WIDTH-1);
-      f32 ty = (f32)(i / TEX_WIDTH) / (TEX_WIDTH-1);
-      u32 x = (u32)(tx*(BACKBUFFER_WIDTH-1));
-      u32 y = (u32)(ty*(BACKBUFFER_HEIGHT-1));
-      u32 color = texture[i];
-      setPixel(x, y, color);
-    }
-#else
-    for (u32 i = 0; i < texture.width*texture.height; ++i) {
-      u32 x = i % texture.width;
-      u32 y = i / texture.width;
-      u32 color = texture.pixels[i];
-      if (x < BACKBUFFER_WIDTH && y < BACKBUFFER_HEIGHT)
-        setPixel(x, y, color);
-    }
-#endif
-#endif
+    //drawTexture(normalMap);
 
 #if 0
     drawTriangle(10, 70, 50, 160, 70, 80, RED);
