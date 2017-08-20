@@ -362,6 +362,11 @@ typedef struct {
   u32 height;
 } Texture;
 
+typedef enum {
+  TGADT_RLE_TC = 10, // true color
+  TGADT_RLE_BW = 11, // black & white
+} TGADataType;
+
 Texture readTGAFile(char *filePath) {
   Texture result;
   BOOL success;
@@ -382,8 +387,8 @@ Texture readTGAFile(char *filePath) {
 
   TGAHeader *header = (TGAHeader *)fileContents;
   u8 *data = fileContents + sizeof(TGAHeader);
-  assert(header->imageType == 10);
-  assert(header->imageSpec.bitsPerPixel == 24 || header->imageSpec.bitsPerPixel == 32);
+  assert(header->imageType == TGADT_RLE_TC || header->imageType == TGADT_RLE_BW);
+  assert(header->imageSpec.bitsPerPixel == 8 || header->imageSpec.bitsPerPixel == 24 || header->imageSpec.bitsPerPixel == 32);
   assert(header->numCharsInIdField == 0);
   assert(header->colorMapType == 0);
   assert(header->imageSpec.xOrigin == 0);
@@ -398,25 +403,37 @@ Texture readTGAFile(char *filePath) {
     bool isRLE = *data & 0x80;
     u8 length = (*(data++) & 0x7F) + 1;
     if (isRLE) {
-      float b = *(data++);
-      float g = *(data++);
-      float r = *(data++);
-      if (header->imageSpec.bitsPerPixel == 32) {
-        data++;
-      }
-      Vec3 color = makeVec3(r/255.0f, g/255.0f, b/255.0f);
-      for (int j = 0; j < length; ++j) {
-        *(tex++) = color;
-      }
-    } else {
-      for (int j = 0; j < length; ++j) {
+      Vec3 color;
+      if (header->imageType == TGADT_RLE_TC) {
         float b = *(data++);
         float g = *(data++);
         float r = *(data++);
         if (header->imageSpec.bitsPerPixel == 32) {
           data++;
         }
-        Vec3 color = makeVec3(r/255.0f, g/255.0f, b/255.0f);
+        color = makeVec3(r/255.0f, g/255.0f, b/255.0f);
+      } else if (header->imageType == TGADT_RLE_BW) {
+        float c = *(data++);
+        color = makeVec3(c/255.0f, c/255.0f, c/255.0f);
+      }
+      for (int j = 0; j < length; ++j) {
+        *(tex++) = color;
+      }
+    } else {
+      for (int j = 0; j < length; ++j) {
+        Vec3 color;
+        if (header->imageType == TGADT_RLE_TC) {
+          float b = *(data++);
+          float g = *(data++);
+          float r = *(data++);
+          if (header->imageSpec.bitsPerPixel == 32) {
+            data++;
+          }
+          color = makeVec3(r/255.0f, g/255.0f, b/255.0f);
+        } else if (header->imageType == TGADT_RLE_BW) {
+          float c = *(data++);
+          color = makeVec3(c/255.0f, c/255.0f, c/255.0f);
+        }
         *(tex++) = color;
       }
     }
@@ -722,6 +739,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
 
   Texture texture = readTGAFile("african_head_diffuse.tga");
   Texture normalMap = readTGAFile("african_head_nm.tga");
+  Texture specularMap = readTGAFile("african_head_spec.tga");
 
   bool gameIsRunning = true;
 
