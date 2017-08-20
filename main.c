@@ -484,6 +484,13 @@ void drawTriangleBarycentric(float x0, float y0, float z0, float u0, float v0,
         // gourad shading
         float intensity = in0*b.x + in1*b.y + in2*b.z;
 
+#if 0
+        if (intensity > 0.75f) intensity = 1.0f;
+        else if (intensity > 0.5f) intensity = 0.75f;
+        else if (intensity > 0.25f) intensity = 0.5f;
+        else if (intensity > 0) intensity = 0.25f;
+#endif
+
         u32 color;
 
         if (isTextured) {
@@ -692,7 +699,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
   int mousePosX = 0;
   int mousePosY = 0;
 
-  Vec3 cameraPos = makeVec3(30.0f, 30.0f, 40.0f);
+  Vec3 cameraPos = makeVec3(3.0f, 1.0f, 5.0f);
   Vec3 cameraTarget = makeVec3(0, 0, 0);
   bool isCameraEnabled = true;
   //
@@ -745,11 +752,13 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
                 break;
               case VK_F4:
                 buttonIsDown[BUTTON_F4] = isDown;
+                break;
               case VK_F5:
                 buttonIsDown[BUTTON_F5] = isDown;
                 break;
               case VK_F6:
                 buttonIsDown[BUTTON_F6] = isDown;
+                break;
               case VK_F7:
                 buttonIsDown[BUTTON_F7] = isDown;
                 break;
