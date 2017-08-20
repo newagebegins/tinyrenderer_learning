@@ -212,9 +212,9 @@ Mat4 transposeMat4(Mat4 m) {
 u32 *backbuffer;
 
 u32 makeU32Color(Vec3 color) {
-  /* assert(color.x >= 0.0f && color.x <= 1.0f); */
-  /* assert(color.y >= 0.0f && color.y <= 1.0f); */
-  /* assert(color.z >= 0.0f && color.z <= 1.0f); */
+  assert(color.x >= 0.0f && color.x <= 1.0f);
+  assert(color.y >= 0.0f && color.y <= 1.0f);
+  assert(color.z >= 0.0f && color.z <= 1.0f);
   //0xFFRRGGBB
   u8 r = (u8)(color.x*0xFF);
   u8 g = (u8)(color.y*0xFF);
@@ -483,9 +483,10 @@ void drawTriangleBarycentric(float x0, float y0, float z0, float u0, float v0,
         assert(normalMap.width == texture.width);
         assert(normalMap.height == texture.height);
         Vec3 normal = normalMap.pixels[tx + ty*texture.width];
-        //normal = normalizeVec3(normal);
+        normal = normalizeVec3(normal);
 
         float intensity = -dotVec3(normal, lightDir);
+        if (intensity < 0) intensity = 0;
 
 #if 0
         if (intensity > 0.75f) intensity = 1.0f;
@@ -860,7 +861,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
 
 #if 1
     float cameraStep = 0.5f;
-    lightDir = normalizeVec3(makeVec3(-1,-1,-1));
+    lightDir = normalizeVec3(makeVec3(-1,0,-0.4f));
     if (buttonIsDown[BUTTON_F3]) {
       cameraPos.z += cameraStep;
       debugPrint("cameraPos.z: %f\n", cameraPos.z);
