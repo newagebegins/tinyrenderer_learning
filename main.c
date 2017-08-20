@@ -429,7 +429,7 @@ Texture readTGAFile(char *filePath) {
 
 float zBuffer[BACKBUFFER_WIDTH*BACKBUFFER_HEIGHT];
 bool isTextured = true;
-bool isGoroud = true;
+bool isGourad = true;
 
 void drawTriangleBarycentric(float x0, float y0, float z0, float u0, float v0,
                              float x1, float y1, float z1, float u1, float v1,
@@ -481,13 +481,13 @@ void drawTriangleBarycentric(float x0, float y0, float z0, float u0, float v0,
         int ty = (int)(v*(texture.height-1));
         u32 texColor = texture.pixels[tx + ty*texture.width];
 
-        // goroud shading
+        // gourad shading
         float intensity = in0*b.x + in1*b.y + in2*b.z;
 
         u32 color;
 
         if (isTextured) {
-          if (isGoroud) {
+          if (isGourad) {
             color = scaleColor(texColor, intensity);
           } else {
             color = texColor;
@@ -786,9 +786,9 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
       else debugPrint("texture off\n");
     }
     if (buttonIsPressed(BUTTON_F5)) {
-      isGoroud = !isGoroud;
-      if (isGoroud) debugPrint("goroud on\n");
-      else debugPrint("goroud off\n");
+      isGourad = !isGourad;
+      if (isGourad) debugPrint("gourad on\n");
+      else debugPrint("gourad off\n");
     }
 
     {
