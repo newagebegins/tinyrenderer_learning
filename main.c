@@ -443,6 +443,74 @@ Texture readTGAFile(char *filePath) {
   return result;
 }
 
+#pragma pack(push, 1)
+typedef struct {
+  char signature[2];
+  u32 fileSize;
+  u16 reserved1;
+  u16 reserved2;
+  u32 imageDataOffset;
+} BitmapFileHeader;
+
+typedef struct {
+  u32 dibHeaderSize;
+  u32 width;
+  u32 height;
+  u16 planes;
+  u16 bitsPerPixel;
+  u32 compression;
+  u32 imageSize;
+  u32 xPixelsPerMeter;
+  u32 yPixelsPerMeter;
+  u32 colorsInColorTable;
+  u32 importantColorCount;
+} DIBHeader;
+
+typedef struct {
+  BitmapFileHeader fileHeader;
+  DIBHeader dibHeader;
+} BMPMainHeader;
+#pragma pack(pop)
+
+Texture readBMPFile(char *filePath) {
+  Texture result;
+  BOOL success;
+
+  HANDLE fileHandle = CreateFile(filePath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+  assert(fileHandle != INVALID_HANDLE_VALUE);
+
+  LARGE_INTEGER fileSize;
+  success = GetFileSizeEx(fileHandle, &fileSize);
+  assert(success);
+
+  u8 *fileContents = malloc(fileSize.LowPart);
+
+  DWORD numBytesRead;
+  success = ReadFile(fileHandle, fileContents, fileSize.LowPart, &numBytesRead, NULL);
+  assert(success);
+  assert(numBytesRead == fileSize.LowPart);
+
+  BMPMainHeader *header = (BMPMainHeader *)fileContents;
+  u8 *data = fileContents + header->fileHeader.imageDataOffset;
+  result.width = header->dibHeader.width;
+  result.height = header->dibHeader.height;
+  result.pixels = malloc(result.width * result.height * sizeof(*result.pixels));
+  Vec3 *tex = result.pixels;
+  Vec3 *texEnd = result.pixels + (result.width*result.height);
+
+  while (tex < texEnd) {
+    Vec3 color;
+    float b = *(data++);
+    float g = *(data++);
+    float r = *(data++);
+    color = makeVec3(r/255.0f, g/255.0f, b/255.0f);
+    *(tex++) = color;
+  }
+
+  free(fileContents);
+  return result;
+}
+
 float zBuffer[BACKBUFFER_WIDTH*BACKBUFFER_HEIGHT];
 bool isTextured = true;
 bool normalMapEnabled = true;
@@ -652,14 +720,51 @@ Mat4 getLookAtMat(Vec3 eye, Vec3 center, Vec3 up) {
   return mulMat4(mInv, tr);
 }
 
-void drawTexture(Texture texture) {
+Texture fontTexture;
+
+void drawTexture(Texture texture, bool stretch) {
   for (u32 i = 0; i < texture.width*texture.height; ++i) {
-    f32 tx = (f32)(i % texture.width) / (texture.width-1);
-    f32 ty = (f32)(i / texture.width) / (texture.height-1);
-    u32 x = (u32)(tx*(BACKBUFFER_WIDTH-1));
-    u32 y = (u32)(ty*(BACKBUFFER_HEIGHT-1));
-    Vec3 color = texture.pixels[i];
-    setPixel(x, y, color);
+    if (stretch) {
+      f32 tx = (f32)(i % texture.width) / (texture.width-1);
+      f32 ty = (f32)(i / texture.width) / (texture.height-1);
+      u32 x = (u32)(tx*(BACKBUFFER_WIDTH-1));
+      u32 y = (u32)(ty*(BACKBUFFER_HEIGHT-1));
+      Vec3 color = texture.pixels[i];
+      setPixel(x, y, color);
+    } else {
+      int x = i % texture.width;
+      int y = i / texture.width;
+      Vec3 color = texture.pixels[i];
+      setPixel(x, y, color);
+    }
+  }
+}
+
+int charWidth = 8;
+int charHeight = 16;
+
+void drawLetter(char letter, int destX, int destY) {
+  int numCols = fontTexture.width / charWidth;
+  int numRows = fontTexture.height / charHeight;
+  int row = letter / numCols;
+  int col = letter % numCols;
+  for (int i = 0; i < charHeight; ++i) {
+    for (int j = 0; j < charWidth; ++j) {
+      int tx = col * charWidth + j;
+      int ty = fontTexture.height - (row * charHeight + i);
+      Vec3 c = fontTexture.pixels[tx + ty*fontTexture.width];
+      if (c.x == 1.0f) {
+        int x = destX + j;
+        int y = destY - i;
+        setPixel(x, y, c);
+      }
+    }
+  }
+}
+
+void drawText(char *text, int destX, int destY) {
+  for (int ch = 0; text[ch]; ++ch) {
+    drawLetter(text[ch], destX + charWidth*ch, BACKBUFFER_HEIGHT-destY);
   }
 }
 
@@ -740,6 +845,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
   Texture texture = readTGAFile("african_head_diffuse.tga");
   Texture normalMap = readTGAFile("african_head_nm.tga");
   Texture specularMap = readTGAFile("african_head_spec.tga");
+  fontTexture = readBMPFile("font.bmp");
 
   bool gameIsRunning = true;
 
@@ -967,7 +1073,10 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
     }
 #endif
 
-    //drawTexture(normalMap);
+    //drawTexture(font, false);
+    drawText("Hello, world", 0, 0);
+    drawText("Second line", 0, charHeight);
+    //drawLetter('A');
 
 #if 0
     drawTriangle(10, 70, 50, 160, 70, 80, RED);
