@@ -762,9 +762,15 @@ void drawLetter(char letter, int destX, int destY) {
   }
 }
 
-void drawText(char *text, int destX, int destY) {
-  for (int ch = 0; text[ch]; ++ch) {
-    drawLetter(text[ch], destX + charWidth*ch, BACKBUFFER_HEIGHT-destY);
+void drawText(int destX, int destY, char *format, ...) {
+  va_list argptr;
+  va_start(argptr, format);
+  char str[1024];
+  vsprintf_s(str, sizeof(str), format, argptr);
+  va_end(argptr);
+
+  for (int ch = 0; str[ch]; ++ch) {
+    drawLetter(str[ch], destX + charWidth*ch, BACKBUFFER_HEIGHT-destY);
   }
 }
 
@@ -821,6 +827,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
   //
 
   float dt = 0.0f;
+  float realDt = 0.0f;
   float targetFps = 60.0f;
   float maxDt = 1.0f / targetFps;
   LARGE_INTEGER perfcFreq = {0};
@@ -852,7 +859,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
   while (gameIsRunning) {
     perfcPrev = perfc;
     QueryPerformanceCounter(&perfc);
-    dt = (float)(perfc.QuadPart - perfcPrev.QuadPart) / (float)perfcFreq.QuadPart;
+    realDt = dt = (float)(perfc.QuadPart - perfcPrev.QuadPart) / (float)perfcFreq.QuadPart;
     if (dt > maxDt) {
       dt = maxDt;
     }
@@ -1074,9 +1081,9 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
 #endif
 
     //drawTexture(font, false);
-    drawText("Hello, world", 0, 0);
-    drawText("Second line", 0, charHeight);
-    //drawLetter('A');
+
+    drawText(0, 0, "dt: %f", realDt);
+    drawText(0, charHeight, "fps: %f", 1.0f/realDt);
 
 #if 0
     drawTriangle(10, 70, 50, 160, 70, 80, RED);
