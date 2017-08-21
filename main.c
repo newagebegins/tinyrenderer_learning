@@ -745,7 +745,7 @@ int charHeight = 16;
 
 void drawLetter(char letter, int destX, int destY) {
   int numCols = fontTexture.width / charWidth;
-  int numRows = fontTexture.height / charHeight;
+  //int numRows = fontTexture.height / charHeight;
   int row = letter / numCols;
   int col = letter % numCols;
   for (int i = 0; i < charHeight; ++i) {
@@ -851,7 +851,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst, LPSTR cmdLine, int cmdS
 
   Texture texture = readTGAFile("african_head_diffuse.tga");
   Texture normalMap = readTGAFile("african_head_nm.tga");
-  Texture specularMap = readTGAFile("african_head_spec.tga");
+  //Texture specularMap = readTGAFile("african_head_spec.tga");
   fontTexture = readBMPFile("font.bmp");
 
   bool gameIsRunning = true;
